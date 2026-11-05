@@ -6,6 +6,7 @@ from app.schemas import (
     HealthResponse,
     ServiceRegistryResponse,
 )
+from app.security import configure_security
 from app.services.registry import build_service_registry
 
 
@@ -22,6 +23,8 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url=None,
 )
+
+configure_security(app)
 
 
 @app.get(
