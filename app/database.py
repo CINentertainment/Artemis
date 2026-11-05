@@ -43,6 +43,16 @@ SessionLocal = sessionmaker(
 )
 
 
+def initialize_database(
+    database_engine: Engine = engine,
+) -> None:
+    from app import models  # noqa: F401
+
+    Base.metadata.create_all(
+        bind=database_engine
+    )
+
+
 def get_database() -> Generator[
     Session,
     None,
