@@ -1,10 +1,11 @@
-from contextlib import asynccontextmanager
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
 from app.config import get_settings
 from app.database import (
+    SessionLocal,
     engine,
     initialize_database,
 )
@@ -19,6 +20,9 @@ from app.security import configure_security
 from app.services.health import (
     check_registered_services,
 )
+from app.services.lifecycle import (
+    record_application_lifecycle_event,
+)
 from app.services.registry import build_service_registry
 from app.services.storage import check_storage_health
 
@@ -32,7 +36,18 @@ async def lifespan(
 ) -> AsyncIterator[None]:
     initialize_database(engine)
 
-    yield
+    record_application_lifecycle_event(
+        SessionLocal,
+        "application_started",
+    )
+
+    try:
+        yield
+    finally:
+        record_application_lifecycle_event(
+            SessionLocal,
+            "application_stopped",
+        )
 
 
 app = FastAPI(
