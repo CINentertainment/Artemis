@@ -1,20 +1,38 @@
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
 from fastapi import FastAPI
 
 from app.config import get_settings
+from app.database import (
+    engine,
+    initialize_database,
+)
 from app.schemas import (
     ApplicationResponse,
     HealthResponse,
     ServiceHealthResponse,
     ServiceRegistryResponse,
+    StorageHealthResponse,
 )
 from app.security import configure_security
 from app.services.health import (
     check_registered_services,
 )
 from app.services.registry import build_service_registry
+from app.services.storage import check_storage_health
 
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(
+    application: FastAPI,
+) -> AsyncIterator[None]:
+    initialize_database(engine)
+
+    yield
 
 
 app = FastAPI(
@@ -26,6 +44,7 @@ app = FastAPI(
     version=settings.application_version,
     docs_url="/docs",
     redoc_url=None,
+    lifespan=lifespan,
 )
 
 configure_security(app)
@@ -86,3 +105,11 @@ async def service_health() -> ServiceHealthResponse:
     return await check_registered_services(
         settings
     )
+
+
+@app.get(
+    "/storage/health",
+    response_model=StorageHealthResponse,
+)
+def storage_health() -> StorageHealthResponse:
+    return check_storage_health(engine)
