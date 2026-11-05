@@ -67,6 +67,7 @@ class ServiceHealthResult(BaseModel):
     name: str
     required: bool
     status: ServiceStatus
+
     response_time_ms: float | None = Field(
         default=None,
         ge=0,
@@ -77,3 +78,11 @@ class ServiceHealthResponse(BaseModel):
     overall_status: SystemHealthStatus
     checked_at: datetime
     services: list[ServiceHealthResult]
+
+
+class StorageHealthResponse(BaseModel):
+    status: SystemHealthStatus
+    database_initialized: bool
+    readable: bool
+    writable: bool
+    checked_at: datetime
