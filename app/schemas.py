@@ -86,3 +86,29 @@ class StorageHealthResponse(BaseModel):
     readable: bool
     writable: bool
     checked_at: datetime
+class PreferenceUpsert(BaseModel):
+    value: str = Field(
+        min_length=1,
+        max_length=10000,
+    )
+
+    value_type: Literal[
+        "text",
+        "integer",
+        "number",
+        "boolean",
+        "json",
+    ] = "text"
+
+    is_sensitive: bool = False
+
+
+class PreferenceResponse(BaseModel):
+    id: int
+    key: str
+    value: str | None
+    value_type: str
+    is_sensitive: bool
+    redacted: bool
+    created_at: datetime
+    updated_at: datetime

@@ -9,6 +9,9 @@ from app.database import (
     engine,
     initialize_database,
 )
+from app.routes.preferences import (
+    router as preferences_router,
+)
 from app.schemas import (
     ApplicationResponse,
     HealthResponse,
@@ -63,6 +66,8 @@ app = FastAPI(
 )
 
 configure_security(app)
+
+app.include_router(preferences_router)
 
 
 @app.get(
