@@ -1,3 +1,4 @@
+from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
@@ -8,6 +9,12 @@ ServiceStatus = Literal[
     "available",
     "unavailable",
     "disabled",
+]
+
+SystemHealthStatus = Literal[
+    "healthy",
+    "degraded",
+    "unavailable",
 ]
 
 
@@ -53,3 +60,20 @@ class ServiceDefinition(BaseModel):
 class ServiceRegistryResponse(BaseModel):
     services: list[ServiceDefinition]
     service_count: int = Field(ge=0)
+
+
+class ServiceHealthResult(BaseModel):
+    key: str
+    name: str
+    required: bool
+    status: ServiceStatus
+    response_time_ms: float | None = Field(
+        default=None,
+        ge=0,
+    )
+
+
+class ServiceHealthResponse(BaseModel):
+    overall_status: SystemHealthStatus
+    checked_at: datetime
+    services: list[ServiceHealthResult]

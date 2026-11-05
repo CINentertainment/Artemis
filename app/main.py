@@ -4,9 +4,13 @@ from app.config import get_settings
 from app.schemas import (
     ApplicationResponse,
     HealthResponse,
+    ServiceHealthResponse,
     ServiceRegistryResponse,
 )
 from app.security import configure_security
+from app.services.health import (
+    check_registered_services,
+)
 from app.services.registry import build_service_registry
 
 
@@ -71,4 +75,14 @@ def list_services() -> ServiceRegistryResponse:
     return ServiceRegistryResponse(
         services=services,
         service_count=len(services),
+    )
+
+
+@app.get(
+    "/services/health",
+    response_model=ServiceHealthResponse,
+)
+async def service_health() -> ServiceHealthResponse:
+    return await check_registered_services(
+        settings
     )
