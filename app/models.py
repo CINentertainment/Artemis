@@ -75,7 +75,7 @@ class Conversation(Base):
     )
 
     title: Mapped[str | None] = mapped_column(
-        String(200),
+        Text,
         nullable=True,
     )
 
