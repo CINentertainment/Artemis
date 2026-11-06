@@ -112,3 +112,32 @@ class PreferenceResponse(BaseModel):
     redacted: bool
     created_at: datetime
     updated_at: datetime
+class ConversationCreate(BaseModel):
+    title: str | None = Field(
+        default=None,
+        max_length=200,
+    )
+
+
+class ConversationResponse(BaseModel):
+    id: str
+    title: str | None
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class MessageCreate(BaseModel):
+    content: str = Field(
+        min_length=1,
+        max_length=100000,
+    )
+
+
+class MessageResponse(BaseModel):
+    id: int
+    conversation_id: str
+    role: str
+    content: str
+    model_name: str | None
+    created_at: datetime
