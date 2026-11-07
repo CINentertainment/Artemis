@@ -90,6 +90,7 @@ def test_ollama_provider_builds_local_chat_request():
     )
 
     assert captured_payload["stream"] is False
+    assert captured_payload["think"] is False
 
     assert (
         captured_payload["options"][

@@ -77,6 +77,7 @@ class OllamaModelProvider(ModelProvider):
                 for message in request.messages
             ],
             "stream": False,
+            "think": False,
             "options": options,
         }
 
