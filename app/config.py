@@ -52,6 +52,23 @@ class Settings(BaseSettings):
     debug: bool = False
     telemetry_enabled: bool = False
     external_access_enabled: bool = False
+    model_provider: str = "deterministic"
+
+    model_name: str = (
+        "artemis-deterministic"
+    )
+
+    model_temperature: float = Field(
+        default=0.2,
+        ge=0.0,
+        le=2.0,
+    )
+
+    model_max_output_tokens: int = Field(
+        default=2048,
+        ge=1,
+        le=100000,
+    )
 
     data_directory: Path = Field(
         default_factory=get_default_data_directory
