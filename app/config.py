@@ -52,6 +52,7 @@ class Settings(BaseSettings):
     debug: bool = False
     telemetry_enabled: bool = False
     external_access_enabled: bool = False
+
     model_provider: str = "deterministic"
 
     model_name: str = (
@@ -70,17 +71,41 @@ class Settings(BaseSettings):
         le=100000,
     )
 
+    ollama_url: str = (
+        "http://127.0.0.1:11434"
+    )
+
+    ollama_timeout_seconds: float = Field(
+        default=120.0,
+        ge=1.0,
+        le=600.0,
+    )
+
     data_directory: Path = Field(
         default_factory=get_default_data_directory
     )
 
     database_filename: str = "artemis.db"
 
-    odysseus_url: str = "http://127.0.0.1:7000"
-    chroma_url: str = "http://127.0.0.1:8100"
-    intel_notes_url: str = "http://127.0.0.1:8001"
-    risk_tracker_url: str = "http://127.0.0.1:8002"
-    market_lens_url: str = "http://127.0.0.1:8003"
+    odysseus_url: str = (
+        "http://127.0.0.1:7000"
+    )
+
+    chroma_url: str = (
+        "http://127.0.0.1:8100"
+    )
+
+    intel_notes_url: str = (
+        "http://127.0.0.1:8001"
+    )
+
+    risk_tracker_url: str = (
+        "http://127.0.0.1:8002"
+    )
+
+    market_lens_url: str = (
+        "http://127.0.0.1:8003"
+    )
 
     @property
     def database_path(self) -> Path:
