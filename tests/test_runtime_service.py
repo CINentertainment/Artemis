@@ -6,11 +6,13 @@ from app.runtime.contracts import (
     ModelMessage,
     ModelRequest,
 )
+from app.runtime.ollama import (
+    OllamaModelProvider,
+)
 from app.runtime.registry import (
     ModelProviderNotFoundError,
 )
 from app.runtime.service import (
-    ModelRuntime,
     build_model_runtime,
 )
 
@@ -23,6 +25,10 @@ def build_test_settings(
         "model_name": "artemis-test-model",
         "model_temperature": 0.2,
         "model_max_output_tokens": 512,
+        "ollama_url": (
+            "http://127.0.0.1:11434"
+        ),
+        "ollama_timeout_seconds": 120.0,
         "_env_file": None,
     }
 
@@ -51,6 +57,15 @@ def test_model_settings_have_safe_defaults():
     assert (
         settings.model_max_output_tokens
         == 2048
+    )
+
+    assert settings.ollama_url == (
+        "http://127.0.0.1:11434"
+    )
+
+    assert (
+        settings.ollama_timeout_seconds
+        == 120.0
     )
 
 
@@ -123,8 +138,55 @@ def test_runtime_lists_available_providers():
     )
 
     assert runtime.available_providers() == [
-        "deterministic"
+        "deterministic",
+        "ollama",
     ]
+
+
+def test_runtime_registers_ollama_configuration():
+    settings = build_test_settings(
+        model_name="qwen3:8b",
+        ollama_timeout_seconds=90.0,
+    )
+
+    runtime = build_model_runtime(
+        settings
+    )
+
+    provider = runtime.registry.get(
+        "ollama"
+    )
+
+    assert isinstance(
+        provider,
+        OllamaModelProvider,
+    )
+
+    assert provider.base_url == (
+        "http://127.0.0.1:11434"
+    )
+
+    assert provider.default_model == (
+        "qwen3:8b"
+    )
+
+    assert provider.timeout_seconds == 90.0
+
+
+def test_ollama_can_be_selected_as_default():
+    runtime = build_model_runtime(
+        build_test_settings(
+            model_provider="ollama",
+            model_name="qwen3:8b",
+        )
+    )
+
+    assert (
+        runtime.registry
+        .get_default()
+        .provider_name
+        == "ollama"
+    )
 
 
 def test_runtime_rejects_unknown_provider():

@@ -6,6 +6,9 @@ from app.runtime.contracts import (
 from app.runtime.deterministic import (
     DeterministicModelProvider,
 )
+from app.runtime.ollama import (
+    OllamaModelProvider,
+)
 from app.runtime.registry import (
     ModelProviderRegistry,
 )
@@ -73,6 +76,16 @@ def build_model_runtime(
                 default_model=(
                     settings.model_name
                 )
+            ),
+            OllamaModelProvider(
+                base_url=settings.ollama_url,
+                default_model=(
+                    settings.model_name
+                ),
+                timeout_seconds=(
+                    settings
+                    .ollama_timeout_seconds
+                ),
             ),
         ]
     )
