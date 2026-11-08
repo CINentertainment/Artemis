@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -157,3 +157,44 @@ class ConversationTurnResponse(BaseModel):
     input_tokens: int
     output_tokens: int
     total_tokens: int
+class ApprovalRequestCreate(BaseModel):
+    operation: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+    resource_type: str = Field(
+        min_length=1,
+        max_length=100,
+    )
+
+    resource_id: str | None = Field(
+        default=None,
+        max_length=100,
+    )
+
+    request_payload: dict[str, Any] | None = None
+
+
+class ApprovalDecisionCreate(BaseModel):
+    decision: Literal[
+        "approved",
+        "rejected",
+    ]
+
+    reason: str | None = Field(
+        default=None,
+        max_length=2000,
+    )
+
+
+class ApprovalResponse(BaseModel):
+    id: str
+    operation: str
+    resource_type: str
+    resource_id: str | None
+    request_payload: dict[str, Any] | None
+    status: str
+    decision_reason: str | None
+    created_at: datetime
+    decided_at: datetime | None

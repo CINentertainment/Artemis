@@ -9,6 +9,9 @@ from app.database import (
     engine,
     initialize_database,
 )
+from app.routes.approvals import (
+    router as approvals_router,
+)
 from app.routes.conversations import (
     router as conversations_router,
 )
@@ -70,6 +73,7 @@ app = FastAPI(
 
 configure_security(app)
 
+app.include_router(approvals_router)
 app.include_router(preferences_router)
 app.include_router(conversations_router)
 
