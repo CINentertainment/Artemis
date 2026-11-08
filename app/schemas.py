@@ -141,3 +141,19 @@ class MessageResponse(BaseModel):
     content: str
     model_name: str | None
     created_at: datetime
+class ConversationTurnCreate(BaseModel):
+    content: str = Field(
+        min_length=1,
+        max_length=100000,
+    )
+
+
+class ConversationTurnResponse(BaseModel):
+    user_message: MessageResponse
+    assistant_message: MessageResponse
+    provider: str
+    model: str
+    finish_reason: str | None
+    input_tokens: int
+    output_tokens: int
+    total_tokens: int

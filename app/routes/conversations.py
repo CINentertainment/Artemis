@@ -10,13 +10,20 @@ from fastapi import (
 )
 from sqlalchemy.orm import Session
 
+from app.config import get_settings
 from app.database import get_database
 from app.models import Conversation, Message
 from app.schemas import (
     ConversationCreate,
     ConversationResponse,
+    ConversationTurnCreate,
+    ConversationTurnResponse,
     MessageCreate,
     MessageResponse,
+)
+from app.runtime.service import (
+    ModelRuntime,
+    build_model_runtime,
 )
 from app.services.audit import record_audit_event
 from app.services.conversations import (
@@ -31,13 +38,19 @@ from app.services.conversations import (
     read_conversation_title,
     read_message_content,
 )
-
+from app.services.orchestration import (
+    ConversationOrchestrationError,
+    run_conversation_turn,
+)
 
 router = APIRouter(
     prefix="/conversations",
     tags=["conversations"],
 )
-
+def get_model_runtime() -> ModelRuntime:
+    return build_model_runtime(
+        get_settings()
+    )
 
 def get_conversation_or_404(
     database: Session,
@@ -328,4 +341,63 @@ def remove_conversation(
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
+    )
+@router.post(
+    "/{conversation_id}/respond",
+    response_model=ConversationTurnResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def generate_conversation_response(
+    conversation_id: UUID,
+    payload: ConversationTurnCreate,
+    database: Session = Depends(get_database),
+    runtime: ModelRuntime = Depends(
+        get_model_runtime
+    ),
+) -> ConversationTurnResponse:
+    conversation = get_conversation_or_404(
+        database,
+        conversation_id,
+    )
+
+    try:
+        result = run_conversation_turn(
+            database,
+            conversation=conversation,
+            user_content=payload.content,
+            runtime=runtime,
+        )
+    except ValueError as error:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(error),
+        ) from error
+    except ConversationOrchestrationError as error:
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Artemis could not generate a "
+                "response."
+            ),
+        ) from error
+
+    usage = result.model_response.usage
+
+    return ConversationTurnResponse(
+        user_message=build_message_response(
+            result.user_message
+        ),
+        assistant_message=build_message_response(
+            result.assistant_message
+        ),
+        provider=result.model_response.provider,
+        model=result.model_response.model,
+        finish_reason=(
+            result.model_response.finish_reason
+        ),
+        input_tokens=usage.input_tokens,
+        output_tokens=usage.output_tokens,
+        total_tokens=usage.total_tokens,
     )
