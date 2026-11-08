@@ -11,8 +11,15 @@ from fastapi import (
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
+from app.connectors.intel_notes import (
+    IntelNotesConnector,
+)
 from app.database import get_database
 from app.models import Conversation, Message
+from app.runtime.service import (
+    ModelRuntime,
+    build_model_runtime,
+)
 from app.schemas import (
     ConversationCreate,
     ConversationResponse,
@@ -20,10 +27,6 @@ from app.schemas import (
     ConversationTurnResponse,
     MessageCreate,
     MessageResponse,
-)
-from app.runtime.service import (
-    ModelRuntime,
-    build_model_runtime,
 )
 from app.services.audit import record_audit_event
 from app.services.conversations import (
@@ -42,18 +45,20 @@ from app.services.orchestration import (
     ConversationOrchestrationError,
     run_conversation_turn,
 )
-from app.connectors.intel_notes import (
-    IntelNotesConnector,
-)
+
 
 router = APIRouter(
     prefix="/conversations",
     tags=["conversations"],
 )
+
+
 def get_model_runtime() -> ModelRuntime:
     return build_model_runtime(
         get_settings()
     )
+
+
 def get_intel_notes_connector():
     connector = IntelNotesConnector(
         base_url=(
@@ -65,6 +70,7 @@ def get_intel_notes_connector():
         yield connector
     finally:
         connector.close()
+
 
 def get_conversation_or_404(
     database: Session,
@@ -356,11 +362,8 @@ def remove_conversation(
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
     )
-@router.post(
-    "/{conversation_id}/respond",
-    response_model=ConversationTurnResponse,
-    status_code=status.HTTP_201_CREATED,
-)
+
+
 @router.post(
     "/{conversation_id}/respond",
     response_model=ConversationTurnResponse,
@@ -392,6 +395,9 @@ def generate_conversation_response(
             runtime=runtime,
             use_intel_notes=(
                 payload.use_intel_notes
+            ),
+            intel_notes_query=(
+                payload.intel_notes_query
             ),
             intel_notes_connector=(
                 intel_notes_connector

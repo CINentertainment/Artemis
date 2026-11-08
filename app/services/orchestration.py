@@ -104,7 +104,22 @@ def build_conversation_context(
             effective_system_prompt = (
                 f"{effective_system_prompt}\n\n"
                 "Supplemental retrieved context "
-                "for this turn:\n"
+                "for this turn follows. Current "
+                "retrieved records are the evidence "
+                "for this turn and take priority over "
+                "conflicting claims made in earlier "
+                "assistant messages. Earlier assistant "
+                "messages are conversation history, "
+                "not authoritative evidence. Do not "
+                "invent definitions for classification, "
+                "reliability, credibility, or other "
+                "rating scales unless those definitions "
+                "are explicitly present in the retrieved "
+                "records or provided context. If a code "
+                "or rating is undefined, report it "
+                "exactly as recorded and state that its "
+                "meaning is not defined in the available "
+                "context.\n"
                 f"{cleaned_supplemental_context}"
             )
 
@@ -152,6 +167,7 @@ def run_conversation_turn(
     temperature: float = 0.2,
     max_output_tokens: int = 2048,
     use_intel_notes: bool = False,
+    intel_notes_query: str | None = None,
     intel_notes_connector: (
         IntelNotesConnector | None
     ) = None,
@@ -174,13 +190,19 @@ def run_conversation_turn(
             use_intel_notes
             and intel_notes_connector is not None
         ):
+            retrieval_query = (
+                intel_notes_query
+                if intel_notes_query is not None
+                else user_content
+            )
+
             retrieval_result = (
                 retrieve_intel_notes(
                     database,
                     connector=(
                         intel_notes_connector
                     ),
-                    query=user_content,
+                    query=retrieval_query,
                 )
             )
 

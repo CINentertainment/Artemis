@@ -86,6 +86,8 @@ class StorageHealthResponse(BaseModel):
     readable: bool
     writable: bool
     checked_at: datetime
+
+
 class PreferenceUpsert(BaseModel):
     value: str = Field(
         min_length=1,
@@ -112,6 +114,8 @@ class PreferenceResponse(BaseModel):
     redacted: bool
     created_at: datetime
     updated_at: datetime
+
+
 class ConversationCreate(BaseModel):
     title: str | None = Field(
         default=None,
@@ -141,6 +145,8 @@ class MessageResponse(BaseModel):
     content: str
     model_name: str | None
     created_at: datetime
+
+
 class ConversationTurnCreate(BaseModel):
     content: str = Field(
         min_length=1,
@@ -148,6 +154,12 @@ class ConversationTurnCreate(BaseModel):
     )
 
     use_intel_notes: bool = False
+
+    intel_notes_query: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=10000,
+    )
 
 
 class ConversationTurnResponse(BaseModel):
@@ -159,6 +171,8 @@ class ConversationTurnResponse(BaseModel):
     input_tokens: int
     output_tokens: int
     total_tokens: int
+
+
 class ApprovalRequestCreate(BaseModel):
     operation: str = Field(
         min_length=1,

@@ -10,6 +10,7 @@ from app.main import app
 from app.routes.conversations import (
     get_intel_notes_connector,
     get_model_runtime,
+    router as conversations_router,
 )
 from app.runtime.contracts import (
     ModelRequest,
@@ -104,6 +105,8 @@ class StubIntelNotesConnector:
                 "classification": (
                     "UNCLASSIFIED"
                 ),
+                "reliability": "B",
+                "credibility": "2",
             }
         ]
 
@@ -480,3 +483,107 @@ def test_api_can_enable_intel_notes_retrieval():
         "<intel_notes_records>"
         in system_message.content
     )
+
+
+def test_api_uses_separate_intel_notes_query():
+    conversation = create_conversation()
+
+    user_question = (
+        "Summarize the matching intelligence "
+        "record and separate facts from analysis."
+    )
+
+    response = client.post(
+        (
+            f"/conversations/"
+            f"{conversation['id']}/respond"
+        ),
+        json={
+            "content": user_question,
+            "use_intel_notes": True,
+            "intel_notes_query": "test2",
+        },
+    )
+
+    assert response.status_code == 201
+    assert test_intel_notes_connector.calls == 1
+
+    assert (
+        test_intel_notes_connector.keyword
+        == "test2"
+    )
+
+    assert len(test_runtime.requests) == 1
+
+    model_request = test_runtime.requests[0]
+
+    assert (
+        model_request.messages[-1].content
+        == user_question
+    )
+
+    system_message = (
+        model_request.messages[0].content
+    )
+
+    assert (
+        "Retrieved API intelligence"
+        in system_message
+    )
+
+    assert (
+        "take priority over conflicting claims"
+        in system_message
+    )
+
+    assert (
+        "Do not invent definitions"
+        in system_message
+    )
+
+
+def test_empty_intel_notes_query_is_rejected():
+    conversation = create_conversation()
+
+    response = client.post(
+        (
+            f"/conversations/"
+            f"{conversation['id']}/respond"
+        ),
+        json={
+            "content": (
+                "Review the matching record."
+            ),
+            "use_intel_notes": True,
+            "intel_notes_query": "",
+        },
+    )
+
+    assert response.status_code == 422
+    assert test_intel_notes_connector.calls == 0
+    assert test_runtime.requests == []
+
+
+def test_respond_route_is_registered_once():
+    matching_routes = [
+        route
+        for route in conversations_router.routes
+        if (
+            getattr(route, "path", None)
+            == (
+                "/conversations/"
+                "{conversation_id}/respond"
+            )
+            and "POST"
+            in (
+                getattr(
+                    route,
+                    "methods",
+                    None,
+                )
+                or set()
+            )
+        )
+    ]
+
+    assert len(matching_routes) == 1
