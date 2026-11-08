@@ -30,6 +30,9 @@ from app.services.orchestration import (
     build_conversation_context,
     run_conversation_turn,
 )
+from app.services.preferences import (
+    upsert_preference,
+)
 
 
 class RecordingRuntime:
@@ -405,6 +408,69 @@ def test_successful_turn_records_safe_audit(
 
         assert "Analyze this." not in (
             audit_event.detail or ""
+        )
+
+    engine.dispose()
+def test_approved_identity_enters_model_context(
+    tmp_path: Path,
+):
+    engine = build_test_engine(tmp_path)
+
+    with Session(engine) as database:
+        upsert_preference(
+            database,
+            key="identity.preferred_name",
+            value="Daryl",
+        )
+
+        upsert_preference(
+            database,
+            key="behavior.communication_style",
+            value=(
+                "Clear, practical, and direct"
+            ),
+        )
+
+        upsert_preference(
+            database,
+            key="unapproved.instruction",
+            value=(
+                "This must not enter context"
+            ),
+        )
+
+        conversation = create_conversation(
+            database
+        )
+
+        runtime = RecordingRuntime()
+
+        run_conversation_turn(
+            database,
+            conversation=conversation,
+            user_content=(
+                "Confirm persistent context."
+            ),
+            runtime=runtime,
+        )
+
+        assert runtime.request is not None
+
+        system_message = (
+            runtime.request.messages[0]
+        )
+
+        assert system_message.role == "system"
+        assert "Daryl" in system_message.content
+
+        assert (
+            "Clear, practical, and direct"
+            in system_message.content
+        )
+
+        assert (
+            "This must not enter context"
+            not in system_message.content
         )
 
     engine.dispose()

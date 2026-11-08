@@ -16,7 +16,10 @@ from app.services.conversations import (
     list_messages,
     read_message_content,
 )
-
+from app.services.identity import (
+    IdentityContextError,
+    build_identity_context,
+)
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are Artemis, a private, local-first "
@@ -62,6 +65,26 @@ def build_conversation_context(
             "System prompt cannot be empty."
         )
 
+    try:
+        identity_context = (
+            build_identity_context(database)
+        )
+    except IdentityContextError as error:
+        raise ConversationOrchestrationError(
+            "Persistent identity context could "
+            "not be prepared."
+        ) from error
+
+    effective_system_prompt = (
+        cleaned_system_prompt
+    )
+
+    if identity_context is not None:
+        effective_system_prompt = (
+            f"{cleaned_system_prompt}\n\n"
+            f"{identity_context}"
+        )
+
     stored_messages = list_messages(
         database,
         conversation_id=conversation.id,
@@ -71,7 +94,7 @@ def build_conversation_context(
     model_messages = [
         ModelMessage(
             role="system",
-            content=cleaned_system_prompt,
+            content=effective_system_prompt,
         )
     ]
 
