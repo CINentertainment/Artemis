@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from app import models
+from app.connectors.intel_notes import (
+    IntelNotesConnector,
+)
 from app.runtime.contracts import (
     ModelMessage,
     ModelRequest,
@@ -20,6 +23,11 @@ from app.services.identity import (
     IdentityContextError,
     build_identity_context,
 )
+from app.services.retrieval import (
+    RetrievalResult,
+    retrieve_intel_notes,
+)
+
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are Artemis, a private, local-first "
@@ -45,6 +53,7 @@ class ConversationTurnResult:
     user_message: models.Message
     assistant_message: models.Message
     model_response: ModelResponse
+    retrieval_result: RetrievalResult | None = None
 
 
 def build_conversation_context(
@@ -55,6 +64,7 @@ def build_conversation_context(
     history_limit: int = (
         MAXIMUM_HISTORY_MESSAGES
     ),
+    supplemental_context: str | None = None,
 ) -> list[ModelMessage]:
     cleaned_system_prompt = (
         system_prompt.strip()
@@ -81,9 +91,22 @@ def build_conversation_context(
 
     if identity_context is not None:
         effective_system_prompt = (
-            f"{cleaned_system_prompt}\n\n"
+            f"{effective_system_prompt}\n\n"
             f"{identity_context}"
         )
+
+    if supplemental_context is not None:
+        cleaned_supplemental_context = (
+            supplemental_context.strip()
+        )
+
+        if cleaned_supplemental_context:
+            effective_system_prompt = (
+                f"{effective_system_prompt}\n\n"
+                "Supplemental retrieved context "
+                "for this turn:\n"
+                f"{cleaned_supplemental_context}"
+            )
 
     stored_messages = list_messages(
         database,
@@ -128,6 +151,10 @@ def run_conversation_turn(
     model: str | None = None,
     temperature: float = 0.2,
     max_output_tokens: int = 2048,
+    use_intel_notes: bool = False,
+    intel_notes_connector: (
+        IntelNotesConnector | None
+    ) = None,
 ) -> ConversationTurnResult:
     user_message = add_message(
         database,
@@ -136,12 +163,39 @@ def run_conversation_turn(
         content=user_content,
     )
 
+    retrieval_result: (
+        RetrievalResult | None
+    ) = None
+
+    supplemental_context = None
+
     try:
+        if (
+            use_intel_notes
+            and intel_notes_connector is not None
+        ):
+            retrieval_result = (
+                retrieve_intel_notes(
+                    database,
+                    connector=(
+                        intel_notes_connector
+                    ),
+                    query=user_content,
+                )
+            )
+
+            supplemental_context = (
+                retrieval_result.context
+            )
+
         model_messages = (
             build_conversation_context(
                 database,
                 conversation=conversation,
                 system_prompt=system_prompt,
+                supplemental_context=(
+                    supplemental_context
+                ),
             )
         )
 
@@ -167,6 +221,12 @@ def run_conversation_turn(
             model_name=model_response.model,
         )
 
+        retrieval_count = (
+            retrieval_result.record_count
+            if retrieval_result is not None
+            else 0
+        )
+
         record_audit_event(
             database,
             event_type="conversation",
@@ -180,7 +240,9 @@ def run_conversation_turn(
                 "input_tokens="
                 f"{model_response.usage.input_tokens}; "
                 "output_tokens="
-                f"{model_response.usage.output_tokens}"
+                f"{model_response.usage.output_tokens}; "
+                "intel_notes_records="
+                f"{retrieval_count}"
             ),
         )
     except ConversationOrchestrationError:
@@ -221,4 +283,5 @@ def run_conversation_turn(
         user_message=user_message,
         assistant_message=assistant_message,
         model_response=model_response,
+        retrieval_result=retrieval_result,
     )
