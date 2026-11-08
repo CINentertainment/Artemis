@@ -8,6 +8,9 @@ from app.connectors.base import (
 from app.connectors.http import (
     LocalHttpConnector,
 )
+from app.connectors.intel_notes import (
+    IntelNotesConnector,
+)
 
 
 class ConnectorRegistryError(Exception):
@@ -151,22 +154,9 @@ def build_connector_registry(
 ) -> ConnectorRegistry:
     return ConnectorRegistry(
         connectors=[
-            LocalHttpConnector(
-                connector_key="intel-notes",
-                connector_name=(
-                    "Intel Notes Manager"
-                ),
-                base_url=(
-                    settings.intel_notes_url
-                ),
-                capabilities=(
-                    "intel_notes.health",
-                    "intel_notes.list",
-                    "intel_notes.get",
-                    "intel_notes.search",
-                    "intel_notes.analytics",
-                ),
-            ),
+            IntelNotesConnector(
+    base_url=settings.intel_notes_url,
+),
             LocalHttpConnector(
                 connector_key="risk-tracker",
                 connector_name=(
