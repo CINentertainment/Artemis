@@ -18,9 +18,11 @@ from app.schemas import (
 )
 from app.services.audit import record_audit_event
 from app.services.preferences import (
+    PreferenceContentError,
     delete_preference,
     get_preference,
     list_preferences,
+    read_preference_value,
     upsert_preference,
 )
 
@@ -49,14 +51,29 @@ def build_preference_response(
 ) -> PreferenceResponse:
     is_redacted = preference.is_sensitive
 
+    if is_redacted:
+        value = None
+    else:
+        try:
+            value = read_preference_value(
+                preference
+            )
+        except PreferenceContentError as error:
+            raise HTTPException(
+                status_code=(
+                    status
+                    .HTTP_500_INTERNAL_SERVER_ERROR
+                ),
+                detail=(
+                    "Preference data could not "
+                    "be decrypted."
+                ),
+            ) from error
+
     return PreferenceResponse(
         id=preference.id,
         key=preference.key,
-        value=(
-            None
-            if is_redacted
-            else preference.value
-        ),
+        value=value,
         value_type=preference.value_type,
         is_sensitive=preference.is_sensitive,
         redacted=is_redacted,
@@ -113,17 +130,6 @@ def write_preference(
     payload: PreferenceUpsert,
     database: Session = Depends(get_database),
 ) -> PreferenceResponse:
-    if payload.is_sensitive:
-        raise HTTPException(
-            status_code=(
-                status.HTTP_422_UNPROCESSABLE_ENTITY
-            ),
-            detail=(
-                "Sensitive preference storage is "
-                "disabled until encryption is configured."
-            ),
-        )
-
     existing_preference = get_preference(
         database,
         key,
@@ -140,7 +146,7 @@ def write_preference(
         key=key,
         value=payload.value,
         value_type=payload.value_type,
-        is_sensitive=False,
+        is_sensitive=payload.is_sensitive,
     )
 
     record_audit_event(

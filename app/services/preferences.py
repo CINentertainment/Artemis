@@ -2,6 +2,16 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app import models
+from app.services.encryption import (
+    DataProtectionError,
+    is_protected_value,
+    protect_text,
+    unprotect_text,
+)
+
+
+class PreferenceContentError(Exception):
+    pass
 
 
 def normalize_preference_key(
@@ -42,6 +52,25 @@ def list_preferences(
     )
 
 
+def read_preference_value(
+    preference: models.UserPreference,
+) -> str:
+    if not is_protected_value(
+        preference.value
+    ):
+        return preference.value
+
+    try:
+        return unprotect_text(
+            preference.value
+        )
+    except DataProtectionError as error:
+        raise PreferenceContentError(
+            "The preference value could not "
+            "be decrypted."
+        ) from error
+
+
 def upsert_preference(
     database: Session,
     *,
@@ -54,6 +83,8 @@ def upsert_preference(
         key
     )
 
+    encrypted_value = protect_text(value)
+
     preference = get_preference(
         database,
         normalized_key,
@@ -62,7 +93,7 @@ def upsert_preference(
     if preference is None:
         preference = models.UserPreference(
             key=normalized_key,
-            value=value,
+            value=encrypted_value,
             value_type=value_type,
             is_sensitive=is_sensitive,
         )
@@ -70,7 +101,7 @@ def upsert_preference(
         database.add(preference)
 
     else:
-        preference.value = value
+        preference.value = encrypted_value
         preference.value_type = value_type
         preference.is_sensitive = (
             is_sensitive

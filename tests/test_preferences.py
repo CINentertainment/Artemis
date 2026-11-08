@@ -7,10 +7,14 @@ from app.database import (
     create_database_engine,
     initialize_database,
 )
+from app.services.encryption import (
+    is_protected_value,
+)
 from app.services.preferences import (
     delete_preference,
     get_preference,
     list_preferences,
+    read_preference_value,
     upsert_preference,
 )
 
@@ -31,7 +35,7 @@ def build_preference_test_engine(
     return engine
 
 
-def test_create_preference(
+def test_create_preference_is_encrypted(
     tmp_path: Path,
 ):
     engine = build_preference_test_engine(
@@ -52,8 +56,16 @@ def test_create_preference(
 
         assert (
             preference.value
-            == "Clear and practical"
+            != "Clear and practical"
         )
+
+        assert is_protected_value(
+            preference.value
+        )
+
+        assert read_preference_value(
+            preference
+        ) == "Clear and practical"
 
         assert preference.is_sensitive is False
 
@@ -81,13 +93,78 @@ def test_update_existing_preference(
         )
 
         assert updated.id == original.id
-        assert updated.value == "Purple"
+
+        assert is_protected_value(
+            updated.value
+        )
+
+        assert read_preference_value(
+            updated
+        ) == "Purple"
 
         preferences = list_preferences(
             database
         )
 
         assert len(preferences) == 1
+
+    engine.dispose()
+
+
+def test_sensitive_preference_is_encrypted(
+    tmp_path: Path,
+):
+    engine = build_preference_test_engine(
+        tmp_path
+    )
+
+    with Session(engine) as database:
+        preference = upsert_preference(
+            database,
+            key="private_context",
+            value="Sensitive local detail",
+            is_sensitive=True,
+        )
+
+        assert preference.is_sensitive is True
+
+        assert is_protected_value(
+            preference.value
+        )
+
+        assert (
+            preference.value
+            != "Sensitive local detail"
+        )
+
+        assert read_preference_value(
+            preference
+        ) == "Sensitive local detail"
+
+    engine.dispose()
+
+
+def test_legacy_plaintext_remains_readable(
+    tmp_path: Path,
+):
+    engine = build_preference_test_engine(
+        tmp_path
+    )
+
+    with Session(engine) as database:
+        preference = upsert_preference(
+            database,
+            key="legacy_setting",
+            value="temporary",
+        )
+
+        preference.value = "legacy plaintext"
+        database.commit()
+        database.refresh(preference)
+
+        assert read_preference_value(
+            preference
+        ) == "legacy plaintext"
 
     engine.dispose()
 
