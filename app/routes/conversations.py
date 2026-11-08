@@ -42,6 +42,9 @@ from app.services.orchestration import (
     ConversationOrchestrationError,
     run_conversation_turn,
 )
+from app.connectors.intel_notes import (
+    IntelNotesConnector,
+)
 
 router = APIRouter(
     prefix="/conversations",
@@ -51,6 +54,17 @@ def get_model_runtime() -> ModelRuntime:
     return build_model_runtime(
         get_settings()
     )
+def get_intel_notes_connector():
+    connector = IntelNotesConnector(
+        base_url=(
+            get_settings().intel_notes_url
+        )
+    )
+
+    try:
+        yield connector
+    finally:
+        connector.close()
 
 def get_conversation_or_404(
     database: Session,
@@ -347,12 +361,22 @@ def remove_conversation(
     response_model=ConversationTurnResponse,
     status_code=status.HTTP_201_CREATED,
 )
+@router.post(
+    "/{conversation_id}/respond",
+    response_model=ConversationTurnResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def generate_conversation_response(
     conversation_id: UUID,
     payload: ConversationTurnCreate,
     database: Session = Depends(get_database),
     runtime: ModelRuntime = Depends(
         get_model_runtime
+    ),
+    intel_notes_connector: (
+        IntelNotesConnector
+    ) = Depends(
+        get_intel_notes_connector
     ),
 ) -> ConversationTurnResponse:
     conversation = get_conversation_or_404(
@@ -366,6 +390,12 @@ def generate_conversation_response(
             conversation=conversation,
             user_content=payload.content,
             runtime=runtime,
+            use_intel_notes=(
+                payload.use_intel_notes
+            ),
+            intel_notes_connector=(
+                intel_notes_connector
+            ),
         )
     except ValueError as error:
         raise HTTPException(

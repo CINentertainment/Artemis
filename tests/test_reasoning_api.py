@@ -8,6 +8,7 @@ from app import models
 from app.database import Base, get_database
 from app.main import app
 from app.routes.conversations import (
+    get_intel_notes_connector,
     get_model_runtime,
 )
 from app.runtime.contracts import (
@@ -37,7 +38,7 @@ Base.metadata.create_all(bind=test_engine)
 client = TestClient(app)
 
 
-class TestRuntime:
+class RecordingRuntime:
     def __init__(self) -> None:
         self.requests: list[ModelRequest] = []
 
@@ -77,7 +78,41 @@ class FailingRuntime:
         )
 
 
-test_runtime = TestRuntime()
+class StubIntelNotesConnector:
+    def __init__(self) -> None:
+        self.calls = 0
+        self.keyword = None
+
+    def list_notes(
+        self,
+        *,
+        keyword=None,
+        **filters,
+    ):
+        self.calls += 1
+        self.keyword = keyword
+
+        return [
+            {
+                "id": 17,
+                "title": (
+                    "Retrieved API intelligence"
+                ),
+                "body": (
+                    "Verified local record content."
+                ),
+                "classification": (
+                    "UNCLASSIFIED"
+                ),
+            }
+        ]
+
+
+test_runtime = RecordingRuntime()
+
+test_intel_notes_connector = (
+    StubIntelNotesConnector()
+)
 
 
 def override_get_database():
@@ -93,9 +128,16 @@ def override_get_model_runtime():
     return test_runtime
 
 
+def override_get_intel_notes_connector():
+    return test_intel_notes_connector
+
+
 @pytest.fixture(autouse=True)
 def isolated_reasoning_database():
     test_runtime.requests.clear()
+
+    test_intel_notes_connector.calls = 0
+    test_intel_notes_connector.keyword = None
 
     app.dependency_overrides[
         get_database
@@ -104,6 +146,10 @@ def isolated_reasoning_database():
     app.dependency_overrides[
         get_model_runtime
     ] = override_get_model_runtime
+
+    app.dependency_overrides[
+        get_intel_notes_connector
+    ] = override_get_intel_notes_connector
 
     with Session(test_engine) as database:
         database.execute(
@@ -129,6 +175,11 @@ def isolated_reasoning_database():
 
     app.dependency_overrides.pop(
         get_model_runtime,
+        None,
+    )
+
+    app.dependency_overrides.pop(
+        get_intel_notes_connector,
         None,
     )
 
@@ -351,4 +402,81 @@ def test_runtime_failure_is_private():
     assert (
         "Private provider failure"
         not in response.text
+    )
+
+
+def test_intel_notes_retrieval_is_off_by_default():
+    conversation = create_conversation()
+
+    response = client.post(
+        (
+            f"/conversations/"
+            f"{conversation['id']}/respond"
+        ),
+        json={
+            "content": (
+                "Answer without retrieval."
+            ),
+        },
+    )
+
+    assert response.status_code == 201
+    assert test_intel_notes_connector.calls == 0
+    assert len(test_runtime.requests) == 1
+
+    system_message = (
+        test_runtime.requests[0].messages[0]
+    )
+
+    assert (
+        "Retrieved API intelligence"
+        not in system_message.content
+    )
+
+
+def test_api_can_enable_intel_notes_retrieval():
+    conversation = create_conversation()
+
+    user_question = (
+        "Review the retrieved intelligence."
+    )
+
+    response = client.post(
+        (
+            f"/conversations/"
+            f"{conversation['id']}/respond"
+        ),
+        json={
+            "content": user_question,
+            "use_intel_notes": True,
+        },
+    )
+
+    assert response.status_code == 201
+    assert test_intel_notes_connector.calls == 1
+
+    assert (
+        test_intel_notes_connector.keyword
+        == user_question
+    )
+
+    assert len(test_runtime.requests) == 1
+
+    system_message = (
+        test_runtime.requests[0].messages[0]
+    )
+
+    assert (
+        "Retrieved API intelligence"
+        in system_message.content
+    )
+
+    assert (
+        "Verified local record content."
+        in system_message.content
+    )
+
+    assert (
+        "<intel_notes_records>"
+        in system_message.content
     )

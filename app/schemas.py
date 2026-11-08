@@ -147,6 +147,8 @@ class ConversationTurnCreate(BaseModel):
         max_length=100000,
     )
 
+    use_intel_notes: bool = False
+
 
 class ConversationTurnResponse(BaseModel):
     user_message: MessageResponse
