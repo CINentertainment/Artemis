@@ -11,6 +11,9 @@ from app.connectors.http import (
 from app.connectors.intel_notes import (
     IntelNotesConnector,
 )
+from app.connectors.risk_tracker import (
+    RiskTrackerConnector,
+)
 
 
 class ConnectorRegistryError(Exception):
@@ -24,6 +27,12 @@ class ConnectorNotFoundError(
 
 
 class DuplicateConnectorError(
+    ConnectorRegistryError
+):
+    pass
+
+
+class ConnectorConfigurationError(
     ConnectorRegistryError
 ):
     pass
@@ -152,26 +161,46 @@ class ConnectorRegistry:
 def build_connector_registry(
     settings: Settings,
 ) -> ConnectorRegistry:
+    risk_tracker_password = (
+        settings.risk_tracker_password
+    )
+
+    if risk_tracker_password is None:
+        raise ConnectorConfigurationError(
+            "Risk Tracker credentials are not "
+            "configured."
+        )
+
+    password_value = (
+        risk_tracker_password
+        .get_secret_value()
+    )
+
+    if not password_value:
+        raise ConnectorConfigurationError(
+            "Risk Tracker credentials are not "
+            "configured."
+        )
+
     return ConnectorRegistry(
         connectors=[
             IntelNotesConnector(
-    base_url=settings.intel_notes_url,
-),
-            LocalHttpConnector(
-                connector_key="risk-tracker",
-                connector_name=(
-                    "Protective Intelligence "
-                    "Risk Tracker"
+                base_url=(
+                    settings.intel_notes_url
                 ),
+            ),
+            RiskTrackerConnector(
                 base_url=(
                     settings.risk_tracker_url
                 ),
-                capabilities=(
-                    "risk_tracker.health",
-                    "risk_tracker.list",
-                    "risk_tracker.get",
-                    "risk_tracker.search",
-                    "risk_tracker.status",
+                username=(
+                    settings
+                    .risk_tracker_username
+                ),
+                password=password_value,
+                timeout_seconds=(
+                    settings
+                    .risk_tracker_timeout_seconds
                 ),
             ),
             LocalHttpConnector(

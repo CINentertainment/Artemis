@@ -9,10 +9,14 @@ from app.connectors.base import (
     ConnectorHealth,
 )
 from app.connectors.registry import (
+    ConnectorConfigurationError,
     ConnectorNotFoundError,
     ConnectorRegistry,
     DuplicateConnectorError,
     build_connector_registry,
+)
+from app.connectors.risk_tracker import (
+    RiskTrackerConnector,
 )
 
 
@@ -226,8 +230,15 @@ def test_build_default_connector_registry(
             "http://127.0.0.1:8001"
         ),
         risk_tracker_url=(
-            "http://127.0.0.1:8002"
+            "http://127.0.0.1:8000"
         ),
+        risk_tracker_username=(
+            "artemis_readonly"
+        ),
+        risk_tracker_password=(
+            "private-test-password"
+        ),
+        risk_tracker_timeout_seconds=15.0,
         market_lens_url=(
             "http://127.0.0.1:8003"
         ),
@@ -251,15 +262,75 @@ def test_build_default_connector_registry(
         capability_map["intel-notes"]
     )
 
-    assert "risk_tracker.status" in (
-        capability_map["risk-tracker"]
+    assert (
+        "risk_tracker.list_cases"
+        in capability_map["risk-tracker"]
+    )
+
+    assert (
+        "risk_tracker.get_case"
+        in capability_map["risk-tracker"]
     )
 
     assert "market_lens.analyze" in (
         capability_map["market-lens"]
     )
 
+    risk_tracker = registry.get(
+        "risk-tracker"
+    )
+
+    assert isinstance(
+        risk_tracker,
+        RiskTrackerConnector,
+    )
+
+    assert (
+        risk_tracker.base_url
+        == "http://127.0.0.1:8000"
+    )
+
+    assert (
+        risk_tracker.username
+        == "artemis_readonly"
+    )
+
+    assert (
+        risk_tracker.timeout_seconds
+        == 15.0
+    )
+
     registry.close()
+
+
+def test_missing_risk_tracker_credentials_fail_closed(
+    tmp_path: Path,
+):
+    settings = Settings(
+        data_directory=tmp_path,
+        risk_tracker_password=None,
+    )
+
+    with pytest.raises(
+        ConnectorConfigurationError,
+        match="credentials",
+    ):
+        build_connector_registry(settings)
+
+
+def test_empty_risk_tracker_password_fails_closed(
+    tmp_path: Path,
+):
+    settings = Settings(
+        data_directory=tmp_path,
+        risk_tracker_password="",
+    )
+
+    with pytest.raises(
+        ConnectorConfigurationError,
+        match="credentials",
+    ):
+        build_connector_registry(settings)
 
 
 def test_default_registry_rejects_remote_urls(
@@ -269,6 +340,9 @@ def test_default_registry_rejects_remote_urls(
         data_directory=tmp_path,
         intel_notes_url=(
             "https://remote.example.com"
+        ),
+        risk_tracker_password=(
+            "private-test-password"
         ),
     )
 

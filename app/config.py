@@ -2,7 +2,7 @@ import os
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+from pydantic import Field, SecretStr
 from pydantic_settings import (
     BaseSettings,
     SettingsConfigDict,
@@ -100,7 +100,21 @@ class Settings(BaseSettings):
     )
 
     risk_tracker_url: str = (
-        "http://127.0.0.1:8002"
+        "http://127.0.0.1:8000"
+    )
+
+    risk_tracker_username: str = (
+        "artemis_readonly"
+    )
+
+    risk_tracker_password: (
+        SecretStr | None
+    ) = None
+
+    risk_tracker_timeout_seconds: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=120.0,
     )
 
     market_lens_url: str = (
