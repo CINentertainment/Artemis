@@ -161,6 +161,16 @@ class ConversationTurnCreate(BaseModel):
         max_length=10000,
     )
 
+    use_risk_tracker: bool = False
+
+    risk_tracker_case_id: int | None = Field(
+        default=None,
+        ge=1,
+    )
+
+    risk_tracker_include_archived: bool = False
+    risk_tracker_include_related: bool = True
+
 
 class ConversationTurnResponse(BaseModel):
     user_message: MessageResponse

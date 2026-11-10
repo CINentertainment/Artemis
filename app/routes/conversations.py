@@ -14,6 +14,9 @@ from app.config import get_settings
 from app.connectors.intel_notes import (
     IntelNotesConnector,
 )
+from app.connectors.risk_tracker import (
+    RiskTrackerConnector,
+)
 from app.database import get_database
 from app.models import Conversation, Message
 from app.runtime.service import (
@@ -64,6 +67,37 @@ def get_intel_notes_connector():
         base_url=(
             get_settings().intel_notes_url
         )
+    )
+
+    try:
+        yield connector
+    finally:
+        connector.close()
+
+
+def get_risk_tracker_connector():
+    settings = get_settings()
+
+    password = (
+        settings.risk_tracker_password
+    )
+
+    if password is None:
+        yield None
+        return
+
+    connector = RiskTrackerConnector(
+        base_url=settings.risk_tracker_url,
+        username=(
+            settings.risk_tracker_username
+        ),
+        password=(
+            password.get_secret_value()
+        ),
+        timeout_seconds=(
+            settings
+            .risk_tracker_timeout_seconds
+        ),
     )
 
     try:
@@ -381,11 +415,30 @@ def generate_conversation_response(
     ) = Depends(
         get_intel_notes_connector
     ),
+    risk_tracker_connector: (
+        RiskTrackerConnector | None
+    ) = Depends(
+        get_risk_tracker_connector
+    ),
 ) -> ConversationTurnResponse:
     conversation = get_conversation_or_404(
         database,
         conversation_id,
     )
+
+    if (
+        payload.use_risk_tracker
+        and risk_tracker_connector is None
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Risk Tracker credentials are "
+                "not configured."
+            ),
+        )
 
     try:
         result = run_conversation_turn(
@@ -401,6 +454,23 @@ def generate_conversation_response(
             ),
             intel_notes_connector=(
                 intel_notes_connector
+            ),
+            use_risk_tracker=(
+                payload.use_risk_tracker
+            ),
+            risk_tracker_case_id=(
+                payload.risk_tracker_case_id
+            ),
+            risk_tracker_include_archived=(
+                payload
+                .risk_tracker_include_archived
+            ),
+            risk_tracker_include_related=(
+                payload
+                .risk_tracker_include_related
+            ),
+            risk_tracker_connector=(
+                risk_tracker_connector
             ),
         )
     except ValueError as error:

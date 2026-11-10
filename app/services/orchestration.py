@@ -6,6 +6,9 @@ from app import models
 from app.connectors.intel_notes import (
     IntelNotesConnector,
 )
+from app.connectors.risk_tracker import (
+    RiskTrackerConnector,
+)
 from app.runtime.contracts import (
     ModelMessage,
     ModelRequest,
@@ -26,6 +29,11 @@ from app.services.identity import (
 from app.services.retrieval import (
     RetrievalResult,
     retrieve_intel_notes,
+)
+from app.services.risk_retrieval import (
+    RiskRetrievalResult,
+    retrieve_risk_tracker_case,
+    retrieve_risk_tracker_cases,
 )
 
 
@@ -53,7 +61,12 @@ class ConversationTurnResult:
     user_message: models.Message
     assistant_message: models.Message
     model_response: ModelResponse
-    retrieval_result: RetrievalResult | None = None
+    retrieval_result: (
+        RetrievalResult | None
+    ) = None
+    risk_retrieval_result: (
+        RiskRetrievalResult | None
+    ) = None
 
 
 def build_conversation_context(
@@ -112,14 +125,17 @@ def build_conversation_context(
                 "messages are conversation history, "
                 "not authoritative evidence. Do not "
                 "invent definitions for classification, "
-                "reliability, credibility, or other "
-                "rating scales unless those definitions "
-                "are explicitly present in the retrieved "
-                "records or provided context. If a code "
-                "or rating is undefined, report it "
-                "exactly as recorded and state that its "
-                "meaning is not defined in the available "
-                "context.\n"
+                "reliability, credibility, risk, or "
+                "other rating scales unless those "
+                "definitions are explicitly present in "
+                "the retrieved records or provided "
+                "context. If a code or rating is "
+                "undefined, report it exactly as "
+                "recorded and state that its meaning "
+                "is not defined in the available "
+                "context. Clearly distinguish recorded "
+                "facts, source reporting, assessments, "
+                "and your own analysis.\n"
                 f"{cleaned_supplemental_context}"
             )
 
@@ -171,6 +187,13 @@ def run_conversation_turn(
     intel_notes_connector: (
         IntelNotesConnector | None
     ) = None,
+    use_risk_tracker: bool = False,
+    risk_tracker_case_id: int | None = None,
+    risk_tracker_include_archived: bool = False,
+    risk_tracker_include_related: bool = True,
+    risk_tracker_connector: (
+        RiskTrackerConnector | None
+    ) = None,
 ) -> ConversationTurnResult:
     user_message = add_message(
         database,
@@ -183,7 +206,11 @@ def run_conversation_turn(
         RetrievalResult | None
     ) = None
 
-    supplemental_context = None
+    risk_retrieval_result: (
+        RiskRetrievalResult | None
+    ) = None
+
+    supplemental_contexts: list[str] = []
 
     try:
         if (
@@ -206,9 +233,55 @@ def run_conversation_turn(
                 )
             )
 
-            supplemental_context = (
-                retrieval_result.context
+            if retrieval_result.context:
+                supplemental_contexts.append(
+                    retrieval_result.context
+                )
+
+        if (
+            use_risk_tracker
+            and risk_tracker_connector is not None
+        ):
+            if risk_tracker_case_id is None:
+                risk_retrieval_result = (
+                    retrieve_risk_tracker_cases(
+                        database,
+                        connector=(
+                            risk_tracker_connector
+                        ),
+                        include_archived=(
+                            risk_tracker_include_archived
+                        ),
+                    )
+                )
+            else:
+                risk_retrieval_result = (
+                    retrieve_risk_tracker_case(
+                        database,
+                        connector=(
+                            risk_tracker_connector
+                        ),
+                        case_id=(
+                            risk_tracker_case_id
+                        ),
+                        include_related=(
+                            risk_tracker_include_related
+                        ),
+                    )
+                )
+
+            if risk_retrieval_result.context:
+                supplemental_contexts.append(
+                    risk_retrieval_result.context
+                )
+
+        supplemental_context = (
+            "\n\n".join(
+                supplemental_contexts
             )
+            if supplemental_contexts
+            else None
+        )
 
         model_messages = (
             build_conversation_context(
@@ -243,9 +316,22 @@ def run_conversation_turn(
             model_name=model_response.model,
         )
 
-        retrieval_count = (
+        intel_notes_record_count = (
             retrieval_result.record_count
             if retrieval_result is not None
+            else 0
+        )
+
+        risk_case_count = (
+            risk_retrieval_result.case_count
+            if risk_retrieval_result is not None
+            else 0
+        )
+
+        risk_related_record_count = (
+            risk_retrieval_result
+            .related_record_count
+            if risk_retrieval_result is not None
             else 0
         )
 
@@ -264,7 +350,11 @@ def run_conversation_turn(
                 "output_tokens="
                 f"{model_response.usage.output_tokens}; "
                 "intel_notes_records="
-                f"{retrieval_count}"
+                f"{intel_notes_record_count}; "
+                "risk_tracker_cases="
+                f"{risk_case_count}; "
+                "risk_tracker_related_records="
+                f"{risk_related_record_count}"
             ),
         )
     except ConversationOrchestrationError:
@@ -306,4 +396,7 @@ def run_conversation_turn(
         assistant_message=assistant_message,
         model_response=model_response,
         retrieval_result=retrieval_result,
+        risk_retrieval_result=(
+            risk_retrieval_result
+        ),
     )
