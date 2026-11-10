@@ -441,3 +441,46 @@ def test_retrieved_content_is_not_in_audit_log(
         )
 
     engine.dispose()
+def test_retrieval_prompt_blocks_undefined_rating_inference(
+    tmp_path: Path,
+):
+    engine = build_test_engine(tmp_path)
+
+    with Session(engine) as database:
+        conversation = create_conversation(
+            database
+        )
+
+        context = build_conversation_context(
+            database,
+            conversation=conversation,
+            supplemental_context=(
+                "Risk level: Moderate. "
+                "Mitigation status: Planned."
+            ),
+        )
+
+        system_message = context[0].content
+
+        assert (
+            "Never interpret, translate, rank"
+            in system_message
+        )
+
+        assert (
+            "Do not infer urgency, severity"
+            in system_message
+        )
+
+        assert (
+            "actions taken, or actions not taken"
+            in system_message
+        )
+
+        assert (
+            "meaning is not defined in the "
+            "available context"
+            in system_message
+        )
+
+    engine.dispose()
