@@ -5,11 +5,11 @@ from app.connectors.base import (
     Connector,
     ConnectorHealth,
 )
-from app.connectors.http import (
-    LocalHttpConnector,
-)
 from app.connectors.intel_notes import (
     IntelNotesConnector,
+)
+from app.connectors.market_lens import (
+    MarketLensConnector,
 )
 from app.connectors.risk_tracker import (
     RiskTrackerConnector,
@@ -158,29 +158,51 @@ class ConnectorRegistry:
         self.close()
 
 
+def read_required_secret(
+    secret_value,
+    *,
+    error_message: str,
+) -> str:
+    if secret_value is None:
+        raise ConnectorConfigurationError(
+            error_message
+        )
+
+    plaintext_value = (
+        secret_value
+        .get_secret_value()
+    )
+
+    if not plaintext_value:
+        raise ConnectorConfigurationError(
+            error_message
+        )
+
+    return plaintext_value
+
+
 def build_connector_registry(
     settings: Settings,
 ) -> ConnectorRegistry:
     risk_tracker_password = (
-        settings.risk_tracker_password
+        read_required_secret(
+            settings.risk_tracker_password,
+            error_message=(
+                "Risk Tracker credentials are "
+                "not configured."
+            ),
+        )
     )
 
-    if risk_tracker_password is None:
-        raise ConnectorConfigurationError(
-            "Risk Tracker credentials are not "
-            "configured."
+    market_lens_api_key = (
+        read_required_secret(
+            settings.market_lens_api_key,
+            error_message=(
+                "Market Lens API key is not "
+                "configured."
+            ),
         )
-
-    password_value = (
-        risk_tracker_password
-        .get_secret_value()
     )
-
-    if not password_value:
-        raise ConnectorConfigurationError(
-            "Risk Tracker credentials are not "
-            "configured."
-        )
 
     return ConnectorRegistry(
         connectors=[
@@ -197,25 +219,24 @@ def build_connector_registry(
                     settings
                     .risk_tracker_username
                 ),
-                password=password_value,
+                password=(
+                    risk_tracker_password
+                ),
                 timeout_seconds=(
                     settings
                     .risk_tracker_timeout_seconds
                 ),
             ),
-            LocalHttpConnector(
-                connector_key="market-lens",
-                connector_name="Market Lens",
+            MarketLensConnector(
                 base_url=(
                     settings.market_lens_url
                 ),
-                capabilities=(
-                    "market_lens.health",
-                    "market_lens.list",
-                    "market_lens.get",
-                    "market_lens.search",
-                    "market_lens.analyze",
-                    "market_lens.analytics",
+                api_key=(
+                    market_lens_api_key
+                ),
+                timeout_seconds=(
+                    settings
+                    .market_lens_timeout_seconds
                 ),
             ),
         ]

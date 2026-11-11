@@ -120,7 +120,15 @@ class Settings(BaseSettings):
     market_lens_url: str = (
         "http://127.0.0.1:8003"
     )
+    market_lens_api_key: (
+        SecretStr | None
+    ) = None
 
+    market_lens_timeout_seconds: float = Field(
+        default=10.0,
+        ge=1.0,
+        le=120.0,
+    )
     @property
     def database_path(self) -> Path:
         return (

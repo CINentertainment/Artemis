@@ -8,6 +8,9 @@ from app.connectors.base import (
     Connector,
     ConnectorHealth,
 )
+from app.connectors.market_lens import (
+    MarketLensConnector,
+)
 from app.connectors.registry import (
     ConnectorConfigurationError,
     ConnectorNotFoundError,
@@ -84,6 +87,40 @@ class StubConnector(Connector):
 
     def close(self) -> None:
         self.closed = True
+
+
+def build_test_settings(
+    tmp_path: Path,
+    **overrides,
+) -> Settings:
+    setting_values = {
+        "data_directory": tmp_path,
+        "intel_notes_url": (
+            "http://127.0.0.1:8001"
+        ),
+        "risk_tracker_url": (
+            "http://127.0.0.1:8000"
+        ),
+        "risk_tracker_username": (
+            "artemis_readonly"
+        ),
+        "risk_tracker_password": (
+            "private-test-password"
+        ),
+        "risk_tracker_timeout_seconds": 15.0,
+        "market_lens_url": (
+            "http://127.0.0.1:8003"
+        ),
+        "market_lens_api_key": (
+            "market-lens-test-api-key-"
+            "with-at-least-32-characters"
+        ),
+        "market_lens_timeout_seconds": 12.0,
+    }
+
+    setting_values.update(overrides)
+
+    return Settings(**setting_values)
 
 
 def test_registry_registers_and_gets_connector():
@@ -224,24 +261,8 @@ def test_registry_context_manager_closes_connectors():
 def test_build_default_connector_registry(
     tmp_path: Path,
 ):
-    settings = Settings(
-        data_directory=tmp_path,
-        intel_notes_url=(
-            "http://127.0.0.1:8001"
-        ),
-        risk_tracker_url=(
-            "http://127.0.0.1:8000"
-        ),
-        risk_tracker_username=(
-            "artemis_readonly"
-        ),
-        risk_tracker_password=(
-            "private-test-password"
-        ),
-        risk_tracker_timeout_seconds=15.0,
-        market_lens_url=(
-            "http://127.0.0.1:8003"
-        ),
+    settings = build_test_settings(
+        tmp_path
     )
 
     registry = build_connector_registry(
@@ -272,8 +293,14 @@ def test_build_default_connector_registry(
         in capability_map["risk-tracker"]
     )
 
-    assert "market_lens.analyze" in (
-        capability_map["market-lens"]
+    assert (
+        "market_lens.list_assets"
+        in capability_map["market-lens"]
+    )
+
+    assert (
+        "market_lens.get_analytics"
+        in capability_map["market-lens"]
     )
 
     risk_tracker = registry.get(
@@ -300,20 +327,39 @@ def test_build_default_connector_registry(
         == 15.0
     )
 
+    market_lens = registry.get(
+        "market-lens"
+    )
+
+    assert isinstance(
+        market_lens,
+        MarketLensConnector,
+    )
+
+    assert (
+        market_lens.base_url
+        == "http://127.0.0.1:8003"
+    )
+
+    assert (
+        market_lens.timeout_seconds
+        == 12.0
+    )
+
     registry.close()
 
 
 def test_missing_risk_tracker_credentials_fail_closed(
     tmp_path: Path,
 ):
-    settings = Settings(
-        data_directory=tmp_path,
+    settings = build_test_settings(
+        tmp_path,
         risk_tracker_password=None,
     )
 
     with pytest.raises(
         ConnectorConfigurationError,
-        match="credentials",
+        match="Risk Tracker credentials",
     ):
         build_connector_registry(settings)
 
@@ -321,14 +367,44 @@ def test_missing_risk_tracker_credentials_fail_closed(
 def test_empty_risk_tracker_password_fails_closed(
     tmp_path: Path,
 ):
-    settings = Settings(
-        data_directory=tmp_path,
+    settings = build_test_settings(
+        tmp_path,
         risk_tracker_password="",
     )
 
     with pytest.raises(
         ConnectorConfigurationError,
-        match="credentials",
+        match="Risk Tracker credentials",
+    ):
+        build_connector_registry(settings)
+
+
+def test_missing_market_lens_api_key_fails_closed(
+    tmp_path: Path,
+):
+    settings = build_test_settings(
+        tmp_path,
+        market_lens_api_key=None,
+    )
+
+    with pytest.raises(
+        ConnectorConfigurationError,
+        match="Market Lens API key",
+    ):
+        build_connector_registry(settings)
+
+
+def test_empty_market_lens_api_key_fails_closed(
+    tmp_path: Path,
+):
+    settings = build_test_settings(
+        tmp_path,
+        market_lens_api_key="",
+    )
+
+    with pytest.raises(
+        ConnectorConfigurationError,
+        match="Market Lens API key",
     ):
         build_connector_registry(settings)
 
@@ -336,13 +412,10 @@ def test_empty_risk_tracker_password_fails_closed(
 def test_default_registry_rejects_remote_urls(
     tmp_path: Path,
 ):
-    settings = Settings(
-        data_directory=tmp_path,
+    settings = build_test_settings(
+        tmp_path,
         intel_notes_url=(
             "https://remote.example.com"
-        ),
-        risk_tracker_password=(
-            "private-test-password"
         ),
     )
 
