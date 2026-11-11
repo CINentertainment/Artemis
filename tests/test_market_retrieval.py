@@ -783,11 +783,21 @@ def test_context_reports_exact_retrieval_counts():
                     "id": 1,
                     "symbol": "AAPL",
                     "name": "Apple Inc.",
+                    "exchange": "NASDAQ",
+                    "currency": "USD",
                 },
                 "prices": prices,
                 "analytics": {
                     "asset_id": 1,
                     "symbol": "AAPL",
+                    "price_bar_count": 23,
+                    "latest_close": 23.0,
+                    "daily_change_percent": 1.5,
+                    "total_return_percent": 10.0,
+                    "moving_average_20": 12.5,
+                    "annualized_volatility_percent": (
+                        14.25
+                    ),
                     "trend": "Recorded trend",
                 },
                 "signals": [],
@@ -825,6 +835,69 @@ def test_context_reports_exact_retrieval_counts():
     assert (
         '"price_record_count":30'
         not in context
+    )
+
+    assert (
+        '"authoritative_summaries":'
+        in context
+    )
+
+    assert (
+        '"exchange":"NASDAQ"'
+        in context
+    )
+
+    assert (
+        '"earliest_record_date":'
+        '"2026-10-01"'
+        in context
+    )
+
+    assert (
+        '"latest_record_date":'
+        '"2026-10-23"'
+        in context
+    )
+
+    assert (
+        '"latest_close_price":"23"'
+        in context
+    )
+
+    assert (
+        '"lowest_close_price":"1"'
+        in context
+    )
+
+    assert (
+        '"highest_close_price":"23"'
+        in context
+    )
+
+    assert (
+        '"price_bar_count":23'
+        in context
+    )
+
+    assert (
+        '"daily_change_percent":1.5'
+        in context
+    )
+
+    assert (
+        '"total_return_percent":10.0'
+        in context
+    )
+
+    assert (
+        '"moving_average_20":12.5'
+        in context
+    )
+
+    assert (
+        '"annualized_volatility_percent":'
+        "14.25"
+        in context
     )
 
     assert (

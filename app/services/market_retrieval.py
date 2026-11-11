@@ -58,6 +58,7 @@ RETRIEVABLE_ANALYTICS_FIELDS = (
     "asset_id",
     "symbol",
     "price_count",
+    "price_bar_count",
     "data_points",
     "start_date",
     "end_date",
@@ -67,6 +68,8 @@ RETRIEVABLE_ANALYTICS_FIELDS = (
     "previous_close",
     "price_change",
     "price_change_percent",
+    "daily_change_percent",
+    "total_return_percent",
     "period_high",
     "period_low",
     "highest_close",
@@ -75,6 +78,7 @@ RETRIEVABLE_ANALYTICS_FIELDS = (
     "average_volume",
     "total_volume",
     "volatility",
+    "annualized_volatility_percent",
     "simple_moving_average",
     "moving_average",
     "moving_average_20",
@@ -189,36 +193,189 @@ def safe_field_length(
     )
 
 
+def read_price_record_date(
+    record: dict[str, Any],
+) -> str | None:
+    value = record.get("trading_date")
+
+    if value is None:
+        value = record.get("date")
+
+    if not isinstance(value, str):
+        return None
+
+    cleaned_value = value.strip()
+
+    return cleaned_value or None
+
+
+def build_price_record_summary(
+    prices: list[dict[str, Any]],
+) -> dict[str, Any]:
+    summary: dict[str, Any] = {
+        "record_count": len(prices),
+    }
+
+    dated_records = [
+        (
+            record_date,
+            record,
+        )
+        for record in prices
+        if (
+            record_date
+            := read_price_record_date(
+                record
+            )
+        )
+        is not None
+    ]
+
+    if dated_records:
+        earliest_date, _ = min(
+            dated_records,
+            key=lambda item: item[0],
+        )
+
+        latest_date, latest_record = max(
+            dated_records,
+            key=lambda item: item[0],
+        )
+
+        summary["earliest_record_date"] = (
+            earliest_date
+        )
+
+        summary["latest_record_date"] = (
+            latest_date
+        )
+
+        if "close_price" in latest_record:
+            summary["latest_close_price"] = (
+                latest_record["close_price"]
+            )
+
+    numeric_closes: list[
+        tuple[float, Any]
+    ] = []
+
+    for record in prices:
+        close_value = record.get(
+            "close_price"
+        )
+
+        if close_value is None:
+            continue
+
+        try:
+            numeric_close = float(
+                close_value
+            )
+        except (
+            TypeError,
+            ValueError,
+        ):
+            continue
+
+        numeric_closes.append(
+            (
+                numeric_close,
+                close_value,
+            )
+        )
+
+    if numeric_closes:
+        summary["lowest_close_price"] = min(
+            numeric_closes,
+            key=lambda item: item[0],
+        )[1]
+
+        summary["highest_close_price"] = max(
+            numeric_closes,
+            key=lambda item: item[0],
+        )[1]
+
+    return summary
+
+
 def build_market_retrieval_metadata(
     asset_bundles: list[dict[str, Any]],
-) -> dict[str, int]:
+) -> dict[str, Any]:
     asset_count = 0
     price_count = 0
     signal_count = 0
     analytics_count = 0
 
+    authoritative_summaries: list[
+        dict[str, Any]
+    ] = []
+
     for bundle in asset_bundles:
-        if isinstance(
-            bundle.get("asset"),
-            dict,
-        ):
+        authoritative_summary: dict[
+            str,
+            Any,
+        ] = {}
+
+        asset = bundle.get("asset")
+
+        if isinstance(asset, dict):
             asset_count += 1
+
+            authoritative_summary[
+                "asset"
+            ] = asset
 
         prices = bundle.get("prices")
 
         if isinstance(prices, list):
-            price_count += len(prices)
+            valid_prices = [
+                record
+                for record in prices
+                if isinstance(record, dict)
+            ]
+
+            price_count += len(
+                valid_prices
+            )
+
+            authoritative_summary[
+                "price_summary"
+            ] = build_price_record_summary(
+                valid_prices
+            )
+
+        analytics = bundle.get(
+            "analytics"
+        )
+
+        if isinstance(analytics, dict):
+            analytics_count += 1
+
+            authoritative_summary[
+                "calculated_analytics"
+            ] = analytics
 
         signals = bundle.get("signals")
 
         if isinstance(signals, list):
-            signal_count += len(signals)
+            valid_signals = [
+                record
+                for record in signals
+                if isinstance(record, dict)
+            ]
 
-        if isinstance(
-            bundle.get("analytics"),
-            dict,
-        ):
-            analytics_count += 1
+            signal_count += len(
+                valid_signals
+            )
+
+            authoritative_summary[
+                "signal_record_count"
+            ] = len(valid_signals)
+
+        if authoritative_summary:
+            authoritative_summaries.append(
+                authoritative_summary
+            )
 
     return {
         "asset_record_count": asset_count,
@@ -227,6 +384,9 @@ def build_market_retrieval_metadata(
             analytics_count
         ),
         "signal_record_count": signal_count,
+        "authoritative_summaries": (
+            authoritative_summaries
+        ),
     }
 
 
@@ -355,7 +515,7 @@ def build_market_lens_context(
     serialized_data = json.dumps(
         context_payload,
         ensure_ascii=False,
-        sort_keys=True,
+        sort_keys=False,
         separators=(",", ":"),
     )
 
