@@ -763,3 +763,82 @@ def test_market_retrieval_audit_excludes_content(
             )
 
     engine.dispose()
+def test_context_reports_exact_retrieval_counts():
+    prices = [
+        {
+            "id": index,
+            "asset_id": 1,
+            "trading_date": (
+                f"2026-10-{index:02d}"
+            ),
+            "close_price": str(index),
+        }
+        for index in range(1, 24)
+    ]
+
+    context = build_market_lens_context(
+        [
+            {
+                "asset": {
+                    "id": 1,
+                    "symbol": "AAPL",
+                    "name": "Apple Inc.",
+                },
+                "prices": prices,
+                "analytics": {
+                    "asset_id": 1,
+                    "symbol": "AAPL",
+                    "trend": "Recorded trend",
+                },
+                "signals": [],
+            }
+        ]
+    )
+
+    assert context is not None
+
+    assert (
+        '"retrieval_metadata":'
+        in context
+    )
+
+    assert (
+        '"asset_record_count":1'
+        in context
+    )
+
+    assert (
+        '"price_record_count":23'
+        in context
+    )
+
+    assert (
+        '"analytics_record_count":1'
+        in context
+    )
+
+    assert (
+        '"signal_record_count":0'
+        in context
+    )
+
+    assert (
+        '"price_record_count":30'
+        not in context
+    )
+
+    assert (
+        "exact number of records"
+        in context
+    )
+
+    assert (
+        "Do not reproduce every price row"
+        in context
+    )
+
+    assert (
+        "Do not describe the records as a number of "
+        "trading days"
+        in context
+    )
