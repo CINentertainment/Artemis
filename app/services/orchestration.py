@@ -6,6 +6,9 @@ from app import models
 from app.connectors.intel_notes import (
     IntelNotesConnector,
 )
+from app.connectors.market_lens import (
+    MarketLensConnector,
+)
 from app.connectors.risk_tracker import (
     RiskTrackerConnector,
 )
@@ -25,6 +28,11 @@ from app.services.conversations import (
 from app.services.identity import (
     IdentityContextError,
     build_identity_context,
+)
+from app.services.market_retrieval import (
+    MarketRetrievalResult,
+    retrieve_market_lens_asset,
+    retrieve_market_lens_assets,
 )
 from app.services.retrieval import (
     RetrievalResult,
@@ -66,6 +74,9 @@ class ConversationTurnResult:
     ) = None
     risk_retrieval_result: (
         RiskRetrievalResult | None
+    ) = None
+    market_retrieval_result: (
+        MarketRetrievalResult | None
     ) = None
 
 
@@ -124,31 +135,45 @@ def build_conversation_context(
                 "assistant messages. Earlier assistant "
                 "messages are conversation history, "
                 "not authoritative evidence. Do not "
-                                "invent definitions for classification, "
+                "invent definitions for classification, "
                 "reliability, credibility, risk, "
-                "priority, status, or any other label "
-                "or rating unless its definition is "
-                "explicitly present in the retrieved "
-                "records or provided context. Never "
-                "interpret, translate, rank, compare, "
-                "minimize, or intensify an undefined "
-                "label. Report an undefined code, "
-                "rating, priority, or status exactly as "
-                "recorded and state that its meaning is "
-                "not defined in the available context. "
-                "A recorded value such as Moderate, "
-                "Elevated, Planned, Open, or similar "
+                "priority, status, market signals, "
+                "trends, or any other label or rating "
+                "unless its definition is explicitly "
+                "present in the retrieved records or "
+                "provided context. Never interpret, "
+                "translate, rank, compare, minimize, "
+                "or intensify an undefined label. "
+                "Report an undefined code, rating, "
+                "priority, status, signal, or trend "
+                "exactly as recorded and state that "
+                "its meaning is not defined in the "
+                "available context. A recorded value "
+                "such as Moderate, Elevated, Planned, "
+                "Open, Watch, Upward, or similar "
                 "describes only the stored value. Do "
                 "not infer urgency, severity, progress, "
-                "completion, actions taken, or actions "
-                "not taken solely from such a value. "
+                "completion, future performance, "
+                "actions taken, or actions not taken "
+                "solely from such a value. Market "
+                "prices, analytics, signals, trends, "
+                "and historical values may be delayed, "
+                "stale, incomplete, or inaccurate and "
+                "must not be presented as guaranteed "
+                "future performance or personalized "
+                "financial advice. Do not claim that "
+                "Artemis executed a trade, changed a "
+                "portfolio, synchronized market data, "
+                "or performed any write operation. "
                 "Any recommendation or hypothesis must "
                 "be clearly labeled as analysis and "
                 "must identify the specific recorded "
                 "facts supporting it. Clearly "
                 "distinguish recorded facts, source "
-                "reporting, assessments, missing "
-                "information, and your own analysis.\n"
+                "reporting, calculated analytics, "
+                "configured signals, assessments, "
+                "missing information, and your own "
+                "analysis.\n"
                 f"{cleaned_supplemental_context}"
             )
 
@@ -207,6 +232,17 @@ def run_conversation_turn(
     risk_tracker_connector: (
         RiskTrackerConnector | None
     ) = None,
+    use_market_lens: bool = False,
+    market_lens_asset_id: int | None = None,
+    market_lens_include_inactive: bool = False,
+    market_lens_include_prices: bool = True,
+    market_lens_include_analytics: bool = True,
+    market_lens_include_signals: bool = True,
+    market_lens_start_date: str | None = None,
+    market_lens_end_date: str | None = None,
+    market_lens_connector: (
+        MarketLensConnector | None
+    ) = None,
 ) -> ConversationTurnResult:
     user_message = add_message(
         database,
@@ -221,6 +257,10 @@ def run_conversation_turn(
 
     risk_retrieval_result: (
         RiskRetrievalResult | None
+    ) = None
+
+    market_retrieval_result: (
+        MarketRetrievalResult | None
     ) = None
 
     supplemental_contexts: list[str] = []
@@ -288,6 +328,55 @@ def run_conversation_turn(
                     risk_retrieval_result.context
                 )
 
+        if (
+            use_market_lens
+            and market_lens_connector is not None
+        ):
+            if market_lens_asset_id is None:
+                market_retrieval_result = (
+                    retrieve_market_lens_assets(
+                        database,
+                        connector=(
+                            market_lens_connector
+                        ),
+                        include_inactive=(
+                            market_lens_include_inactive
+                        ),
+                    )
+                )
+            else:
+                market_retrieval_result = (
+                    retrieve_market_lens_asset(
+                        database,
+                        connector=(
+                            market_lens_connector
+                        ),
+                        asset_id=(
+                            market_lens_asset_id
+                        ),
+                        include_prices=(
+                            market_lens_include_prices
+                        ),
+                        include_analytics=(
+                            market_lens_include_analytics
+                        ),
+                        include_signals=(
+                            market_lens_include_signals
+                        ),
+                        start_date=(
+                            market_lens_start_date
+                        ),
+                        end_date=(
+                            market_lens_end_date
+                        ),
+                    )
+                )
+
+            if market_retrieval_result.context:
+                supplemental_contexts.append(
+                    market_retrieval_result.context
+                )
+
         supplemental_context = (
             "\n\n".join(
                 supplemental_contexts
@@ -348,6 +437,30 @@ def run_conversation_turn(
             else 0
         )
 
+        market_asset_count = (
+            market_retrieval_result.asset_count
+            if market_retrieval_result is not None
+            else 0
+        )
+
+        market_price_count = (
+            market_retrieval_result.price_count
+            if market_retrieval_result is not None
+            else 0
+        )
+
+        market_signal_count = (
+            market_retrieval_result.signal_count
+            if market_retrieval_result is not None
+            else 0
+        )
+
+        market_analytics_count = (
+            market_retrieval_result.analytics_count
+            if market_retrieval_result is not None
+            else 0
+        )
+
         record_audit_event(
             database,
             event_type="conversation",
@@ -367,7 +480,15 @@ def run_conversation_turn(
                 "risk_tracker_cases="
                 f"{risk_case_count}; "
                 "risk_tracker_related_records="
-                f"{risk_related_record_count}"
+                f"{risk_related_record_count}; "
+                "market_lens_assets="
+                f"{market_asset_count}; "
+                "market_lens_prices="
+                f"{market_price_count}; "
+                "market_lens_signals="
+                f"{market_signal_count}; "
+                "market_lens_analytics="
+                f"{market_analytics_count}"
             ),
         )
     except ConversationOrchestrationError:
@@ -411,5 +532,8 @@ def run_conversation_turn(
         retrieval_result=retrieval_result,
         risk_retrieval_result=(
             risk_retrieval_result
+        ),
+        market_retrieval_result=(
+            market_retrieval_result
         ),
     )

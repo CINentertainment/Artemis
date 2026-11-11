@@ -171,6 +171,30 @@ class ConversationTurnCreate(BaseModel):
     risk_tracker_include_archived: bool = False
     risk_tracker_include_related: bool = True
 
+    use_market_lens: bool = False
+
+    market_lens_asset_id: int | None = Field(
+        default=None,
+        ge=1,
+    )
+
+    market_lens_include_inactive: bool = False
+    market_lens_include_prices: bool = True
+    market_lens_include_analytics: bool = True
+    market_lens_include_signals: bool = True
+
+    market_lens_start_date: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=10,
+    )
+
+    market_lens_end_date: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=10,
+    )
+
 
 class ConversationTurnResponse(BaseModel):
     user_message: MessageResponse

@@ -14,6 +14,9 @@ from app.config import get_settings
 from app.connectors.intel_notes import (
     IntelNotesConnector,
 )
+from app.connectors.market_lens import (
+    MarketLensConnector,
+)
 from app.connectors.risk_tracker import (
     RiskTrackerConnector,
 )
@@ -86,17 +89,55 @@ def get_risk_tracker_connector():
         yield None
         return
 
+    password_value = (
+        password.get_secret_value()
+    )
+
+    if not password_value:
+        yield None
+        return
+
     connector = RiskTrackerConnector(
         base_url=settings.risk_tracker_url,
         username=(
             settings.risk_tracker_username
         ),
-        password=(
-            password.get_secret_value()
-        ),
+        password=password_value,
         timeout_seconds=(
             settings
             .risk_tracker_timeout_seconds
+        ),
+    )
+
+    try:
+        yield connector
+    finally:
+        connector.close()
+
+
+def get_market_lens_connector():
+    settings = get_settings()
+
+    api_key = settings.market_lens_api_key
+
+    if api_key is None:
+        yield None
+        return
+
+    api_key_value = (
+        api_key.get_secret_value()
+    )
+
+    if not api_key_value:
+        yield None
+        return
+
+    connector = MarketLensConnector(
+        base_url=settings.market_lens_url,
+        api_key=api_key_value,
+        timeout_seconds=(
+            settings
+            .market_lens_timeout_seconds
         ),
     )
 
@@ -420,6 +461,11 @@ def generate_conversation_response(
     ) = Depends(
         get_risk_tracker_connector
     ),
+    market_lens_connector: (
+        MarketLensConnector | None
+    ) = Depends(
+        get_market_lens_connector
+    ),
 ) -> ConversationTurnResponse:
     conversation = get_conversation_or_404(
         database,
@@ -437,6 +483,20 @@ def generate_conversation_response(
             detail=(
                 "Risk Tracker credentials are "
                 "not configured."
+            ),
+        )
+
+    if (
+        payload.use_market_lens
+        and market_lens_connector is None
+    ):
+        raise HTTPException(
+            status_code=(
+                status.HTTP_503_SERVICE_UNAVAILABLE
+            ),
+            detail=(
+                "Market Lens API key is not "
+                "configured."
             ),
         )
 
@@ -471,6 +531,37 @@ def generate_conversation_response(
             ),
             risk_tracker_connector=(
                 risk_tracker_connector
+            ),
+            use_market_lens=(
+                payload.use_market_lens
+            ),
+            market_lens_asset_id=(
+                payload.market_lens_asset_id
+            ),
+            market_lens_include_inactive=(
+                payload
+                .market_lens_include_inactive
+            ),
+            market_lens_include_prices=(
+                payload
+                .market_lens_include_prices
+            ),
+            market_lens_include_analytics=(
+                payload
+                .market_lens_include_analytics
+            ),
+            market_lens_include_signals=(
+                payload
+                .market_lens_include_signals
+            ),
+            market_lens_start_date=(
+                payload.market_lens_start_date
+            ),
+            market_lens_end_date=(
+                payload.market_lens_end_date
+            ),
+            market_lens_connector=(
+                market_lens_connector
             ),
         )
     except ValueError as error:
