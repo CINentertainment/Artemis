@@ -13,6 +13,9 @@ const elements = {
     newConversationButton: document.getElementById(
         "new-conversation-button"
     ),
+    welcomeNewOperationButton: document.getElementById(
+        "welcome-new-operation-button"
+    ),
     conversationTitle: document.getElementById(
         "conversation-title"
     ),
@@ -285,7 +288,7 @@ function renderConversationList() {
         title.className = "conversation-title";
         title.textContent = (
             conversation.title
-            || "Untitled conversation"
+            || "Untitled operation"
         );
 
         const date = document.createElement("div");
@@ -370,7 +373,7 @@ function renderMessage(message) {
     const label = document.createElement("div");
     label.className = "message-label";
     label.textContent = (
-        isUser ? "You" : "Artemis"
+        isUser ? "Operator" : "Artemis"
     );
 
     const content = document.createElement("div");
@@ -407,7 +410,7 @@ async function selectConversation(
     );
 
     elements.conversationSubtitle.textContent = (
-        "Private, locally stored conversation"
+        "Private, locally stored operation record"
     );
 
     elements.welcomePanel.classList.add(
@@ -494,8 +497,8 @@ async function createConversation(
 
 async function handleNewConversation() {
     const title = window.prompt(
-        "Conversation title:",
-        "New Artemis Conversation",
+        "Operation title:",
+        "New Artemis Operation",
     );
 
     if (title === null) {
@@ -615,13 +618,13 @@ function setSending(sending) {
     elements.messageInput.disabled = sending;
 
     elements.sendButton.textContent = (
-        sending ? "Thinking…" : "Send"
+        sending ? "Processing…" : "Transmit"
     );
 
     elements.composerStatus.textContent = (
         sending
-            ? "Artemis is processing locally…"
-            : "Private mode · Local processing"
+            ? "ARTEMIS PROCESSING // LOCAL NODE"
+            : "PRIVATE MODE // LOCAL PROCESSING"
     );
 }
 
@@ -709,6 +712,11 @@ function toggleOptions(
 
 function bindEvents() {
     elements.newConversationButton.addEventListener(
+        "click",
+        handleNewConversation,
+    );
+
+    elements.welcomeNewOperationButton.addEventListener(
         "click",
         handleNewConversation,
     );
