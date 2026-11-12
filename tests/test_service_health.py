@@ -58,7 +58,7 @@ async def test_all_services_available(
 
 
 @pytest.mark.asyncio
-async def test_optional_service_failure_is_degraded(
+async def test_transitional_service_failure_is_healthy(
     monkeypatch,
 ):
     async def fake_check_service(
@@ -68,6 +68,39 @@ async def test_optional_service_failure_is_degraded(
         service_status = (
             "unavailable"
             if service.key == "odysseus"
+            else "available"
+        )
+
+        return build_result(
+            key=service.key,
+            required=service.required,
+            status=service_status,
+        )
+
+    monkeypatch.setattr(
+        health,
+        "check_service",
+        fake_check_service,
+    )
+
+    result = await health.check_registered_services(
+        get_settings()
+    )
+
+    assert result.overall_status == "healthy"
+
+
+@pytest.mark.asyncio
+async def test_active_optional_failure_is_degraded(
+    monkeypatch,
+):
+    async def fake_check_service(
+        service,
+        client,
+    ):
+        service_status = (
+            "unavailable"
+            if service.key == "risk-tracker"
             else "available"
         )
 
@@ -146,6 +179,7 @@ def test_service_health_endpoint():
         )
 
     assert response.status_code == 200
+
     assert (
         response.json()["overall_status"]
         == "healthy"

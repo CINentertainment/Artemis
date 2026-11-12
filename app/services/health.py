@@ -84,15 +84,21 @@ async def check_registered_services(
         for result in results
     )
 
-    optional_service_failed = any(
-        not result.required
+    active_optional_service_failed = any(
+        not service.required
+        and service.category
+        != "temporary-interface"
         and result.status == "unavailable"
-        for result in results
+        for service, result in zip(
+            services,
+            results,
+            strict=True,
+        )
     )
 
     if required_service_failed:
         overall_status = "unavailable"
-    elif optional_service_failed:
+    elif active_optional_service_failed:
         overall_status = "degraded"
     else:
         overall_status = "healthy"
