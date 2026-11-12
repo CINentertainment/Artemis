@@ -18,3 +18,4 @@ chroma-data/
 dist/
 build/
 *.spec
+.runtime/
