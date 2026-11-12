@@ -22,9 +22,14 @@ from app.services.conversations import (
     list_messages,
     read_message_content,
 )
+from app.services.market_retrieval import (
+    MarketRetrievalResult,
+)
 from app.services.orchestration import (
+    build_grounded_assistant_content,
     run_conversation_turn,
 )
+
 
 
 class RecordingRuntime:
@@ -706,3 +711,59 @@ def test_market_content_is_not_in_audit_log(
         )
 
     engine.dispose()
+def test_deterministic_facts_precede_model_analysis():
+    authoritative_facts = (
+        "**Retrieved Facts (deterministic):**\n"
+        "- exchange: NASDAQ\n"
+        "- latest_record_date: 2026-10-29\n"
+        "- latest_close_price: 350.339996"
+    )
+
+    retrieval_result = (
+        MarketRetrievalResult(
+            source="market-lens",
+            available=True,
+            asset_count=1,
+            price_count=23,
+            signal_count=0,
+            analytics_count=1,
+            context=(
+                "Retrieved Market Lens context."
+            ),
+            facts=authoritative_facts,
+        )
+    )
+
+    model_content = (
+        "The exchange was assumed and the "
+        "latest date may have been 2026-10-16."
+    )
+
+    combined_content = (
+        build_grounded_assistant_content(
+            model_content=model_content,
+            market_retrieval_result=(
+                retrieval_result
+            ),
+        )
+    )
+
+    assert combined_content.startswith(
+        authoritative_facts
+    )
+
+    assert (
+        "**Model Analysis (inference):**"
+        in combined_content
+    )
+
+    assert model_content in combined_content
+
+    assert (
+        combined_content.index(
+            "2026-10-29"
+        )
+        < combined_content.index(
+            "2026-10-16"
+        )
+    )

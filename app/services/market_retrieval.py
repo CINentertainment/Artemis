@@ -12,7 +12,9 @@ from app.services.audit import record_audit_event
 from app.services.authorization import (
     authorize_operation,
 )
-
+from app.services.market_facts import (
+    build_market_lens_facts,
+)
 
 DEFAULT_MAXIMUM_ASSETS = 20
 MAXIMUM_ASSETS = 100
@@ -111,6 +113,7 @@ class MarketRetrievalResult:
     signal_count: int
     analytics_count: int
     context: str | None
+    facts: str | None = None
     error: str | None = None
 
 
@@ -396,6 +399,9 @@ def build_market_lens_context(
     maximum_field_length: int = (
         DEFAULT_MAXIMUM_FIELD_LENGTH
     ),
+    metadata_target: (
+        dict[str, Any] | None
+    ) = None,
 ) -> str | None:
     if not asset_bundles:
         return None
@@ -494,14 +500,20 @@ def build_market_lens_context(
             sanitized_bundle
         )
 
-    if not sanitized_bundles:
-        return None
+        if not sanitized_bundles:
+            return None
 
     retrieval_metadata = (
         build_market_retrieval_metadata(
             sanitized_bundles
         )
     )
+
+    if metadata_target is not None:
+        metadata_target.clear()
+        metadata_target.update(
+            retrieval_metadata
+        )
 
     context_payload = {
         "retrieval_metadata": (
@@ -630,11 +642,22 @@ def retrieve_market_lens_assets(
         for asset in selected_assets
     ]
 
+    retrieval_metadata: dict[
+        str,
+        Any,
+    ] = {}
     context = build_market_lens_context(
         asset_bundles,
         maximum_field_length=(
             maximum_field_length
         ),
+        metadata_target=(
+            retrieval_metadata
+        ),
+    )
+
+    facts = build_market_lens_facts(
+        retrieval_metadata
     )
 
     record_audit_event(
@@ -653,6 +676,7 @@ def retrieve_market_lens_assets(
         signal_count=0,
         analytics_count=0,
         context=context,
+        facts=facts,
     )
 
 
@@ -796,11 +820,23 @@ def retrieve_market_lens_asset(
         else 0
     )
 
+    retrieval_metadata: dict[
+        str,
+        Any,
+    ] = {}
+
     context = build_market_lens_context(
         [asset_bundle],
         maximum_field_length=(
             maximum_field_length
         ),
+        metadata_target=(
+            retrieval_metadata
+        ),
+    )
+
+    facts = build_market_lens_facts(
+        retrieval_metadata
     )
 
     record_audit_event(
@@ -820,4 +856,5 @@ def retrieve_market_lens_asset(
         signal_count=signal_count,
         analytics_count=analytics_count,
         context=context,
+        facts=facts,
     )

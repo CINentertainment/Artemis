@@ -208,7 +208,39 @@ def build_conversation_context(
 
     return model_messages
 
+def build_grounded_assistant_content(
+    *,
+    model_content: str,
+    market_retrieval_result: (
+        MarketRetrievalResult | None
+    ),
+) -> str:
+    cleaned_model_content = (
+        model_content.strip()
+    )
 
+    market_facts = (
+        market_retrieval_result.facts
+        if market_retrieval_result
+        is not None
+        else None
+    )
+
+    if not market_facts:
+        return cleaned_model_content
+
+    cleaned_market_facts = (
+        market_facts.strip()
+    )
+
+    if not cleaned_model_content:
+        return cleaned_market_facts
+
+    return (
+        f"{cleaned_market_facts}\n\n"
+        "**Model Analysis (inference):**\n"
+        f"{cleaned_model_content}"
+    )
 def run_conversation_turn(
     database: Session,
     *,
@@ -374,7 +406,27 @@ def run_conversation_turn(
 
             if market_retrieval_result.context:
                 supplemental_contexts.append(
-                    market_retrieval_result.context
+                    (
+                        "The application will add a "
+                        "deterministic Retrieved Facts "
+                        "section to the final response. "
+                        "Provide analysis only. Do not "
+                        "restate, rewrite, round, label, "
+                        "or attach new interpretations "
+                        "to exact asset fields, record "
+                        "counts, dates, prices, calculated "
+                        "analytics, or signal counts. Do "
+                        "not contradict the authoritative "
+                        "retrieved facts. A zero signal "
+                        "count means only that no signals "
+                        "were retrieved; it does not prove "
+                        "that recommendations do or do not "
+                        "exist. Do not assign qualitative "
+                        "labels such as low, moderate, or "
+                        "high unless the retrieved context "
+                        "explicitly defines that scale.\n\n"
+                        f"{market_retrieval_result.context}"
+                    )
                 )
 
         supplemental_context = (
@@ -410,11 +462,22 @@ def run_conversation_turn(
             provider_name=provider_name,
         )
 
+        assistant_content = (
+            build_grounded_assistant_content(
+                model_content=(
+                    model_response.content
+                ),
+                market_retrieval_result=(
+                    market_retrieval_result
+                ),
+            )
+        )
+
         assistant_message = add_message(
             database,
             conversation=conversation,
             role="assistant",
-            content=model_response.content,
+            content=assistant_content,
             model_name=model_response.model,
         )
 
