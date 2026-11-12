@@ -22,6 +22,43 @@ def test_read_root():
     }
 
 
+def test_dashboard():
+    response = client.get("/dashboard")
+
+    assert response.status_code == 200
+    assert "text/html" in response.headers[
+        "content-type"
+    ]
+    assert "Artemis" in response.text
+    assert "/static/styles.css" in response.text
+    assert "/static/app.js" in response.text
+
+
+def test_dashboard_stylesheet():
+    response = client.get(
+        "/static/styles.css"
+    )
+
+    assert response.status_code == 200
+    assert "text/css" in response.headers[
+        "content-type"
+    ]
+    assert len(response.text.strip()) > 0
+
+
+def test_dashboard_javascript():
+    response = client.get(
+        "/static/app.js"
+    )
+
+    assert response.status_code == 200
+    assert (
+        "javascript"
+        in response.headers["content-type"]
+    )
+    assert len(response.text.strip()) > 0
+
+
 def test_health_check():
     response = client.get("/health")
 

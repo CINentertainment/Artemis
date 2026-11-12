@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+    <meta
+        name="description"
+        content="Artemis private local intelligence assistant"
+    >
+    <title>Artemis</title>
+    <link
+        rel="stylesheet"
+        href="/static/styles.css"
+    >
+</head>
+<body>
+    <div class="app-shell">
+        <aside class="sidebar">
+            <div class="brand">
+                <div class="brand-mark">A</div>
+
+                <div>
+                    <h1>Artemis</h1>
+                    <p>Private Intelligence Assistant</p>
+                </div>
+            </div>
+
+            <button
+                id="new-conversation-button"
+                class="primary-button full-width"
+                type="button"
+            >
+                New conversation
+            </button>
+
+            <div class="sidebar-heading">
+                Conversations
+            </div>
+
+            <div
+                id="conversation-list"
+                class="conversation-list"
+                aria-live="polite"
+            >
+                <p class="muted-text">
+                    Loading conversations…
+                </p>
+            </div>
+
+            <div class="sidebar-footer">
+                <a href="/docs" target="_blank">
+                    API documentation
+                </a>
+
+                <span>Artemis v0.1.0</span>
+            </div>
+        </aside>
+
+        <main class="main-panel">
+            <header class="topbar">
+                <div>
+                    <h2 id="conversation-title">
+                        Artemis
+                    </h2>
+
+                    <p id="conversation-subtitle">
+                        Local-first reasoning with controlled
+                        retrieval
+                    </p>
+                </div>
+
+                <div class="status-group">
+                    <button
+                        id="refresh-status-button"
+                        class="icon-button"
+                        type="button"
+                        title="Refresh service status"
+                        aria-label="Refresh service status"
+                    >
+                        ↻
+                    </button>
+
+                    <div
+                        id="system-status"
+                        class="status-pill status-checking"
+                    >
+                        <span class="status-dot"></span>
+                        <span id="system-status-text">
+                            Checking
+                        </span>
+                    </div>
+                </div>
+            </header>
+
+            <section
+                id="welcome-panel"
+                class="welcome-panel"
+            >
+                <div class="welcome-mark">A</div>
+
+                <h2>Welcome to Artemis</h2>
+
+                <p>
+                    Start a conversation, select the local
+                    sources Artemis may retrieve, and ask a
+                    question.
+                </p>
+
+                <div class="capability-grid">
+                    <article class="capability-card">
+                        <span class="capability-icon">N</span>
+                        <h3>Intel Notes</h3>
+                        <p>
+                            Search controlled intelligence
+                            notes and recorded reporting.
+                        </p>
+                    </article>
+
+                    <article class="capability-card">
+                        <span class="capability-icon">R</span>
+                        <h3>Risk Tracker</h3>
+                        <p>
+                            Review protective-intelligence
+                            cases and related records.
+                        </p>
+                    </article>
+
+                    <article class="capability-card">
+                        <span class="capability-icon">M</span>
+                        <h3>Market Lens</h3>
+                        <p>
+                            Analyze authenticated, read-only
+                            market records.
+                        </p>
+                    </article>
+                </div>
+            </section>
+
+            <section
+                id="message-panel"
+                class="message-panel hidden"
+                aria-live="polite"
+            ></section>
+
+            <section class="composer-area">
+                <div class="retrieval-controls">
+                    <div class="retrieval-heading">
+                        Controlled retrieval
+                    </div>
+
+                    <div class="source-toggles">
+                        <label class="source-toggle">
+                            <input
+                                id="use-intel-notes"
+                                type="checkbox"
+                            >
+                            <span>Intel Notes</span>
+                        </label>
+
+                        <label class="source-toggle">
+                            <input
+                                id="use-risk-tracker"
+                                type="checkbox"
+                            >
+                            <span>Risk Tracker</span>
+                        </label>
+
+                        <label class="source-toggle">
+                            <input
+                                id="use-market-lens"
+                                type="checkbox"
+                            >
+                            <span>Market Lens</span>
+                        </label>
+                    </div>
+
+                    <div
+                        id="intel-notes-options"
+                        class="source-options hidden"
+                    >
+                        <label for="intel-notes-query">
+                            Intel Notes search query
+                        </label>
+
+                        <input
+                            id="intel-notes-query"
+                            type="text"
+                            maxlength="10000"
+                            placeholder="Optional focused search query"
+                        >
+                    </div>
+
+                    <div
+                        id="risk-tracker-options"
+                        class="source-options hidden"
+                    >
+                        <div class="option-grid">
+                            <div>
+                                <label for="risk-case-id">
+                                    Case ID
+                                </label>
+
+                                <input
+                                    id="risk-case-id"
+                                    type="number"
+                                    min="1"
+                                    placeholder="Optional"
+                                >
+                            </div>
+
+                            <label class="check-option">
+                                <input
+                                    id="risk-include-archived"
+                                    type="checkbox"
+                                >
+                                Include archived cases
+                            </label>
+
+                            <label class="check-option">
+                                <input
+                                    id="risk-include-related"
+                                    type="checkbox"
+                                    checked
+                                >
+                                Include related records
+                            </label>
+                        </div>
+                    </div>
+
+                    <div
+                        id="market-lens-options"
+                        class="source-options hidden"
+                    >
+                        <div class="option-grid">
+                            <div>
+                                <label for="market-asset-id">
+                                    Asset ID
+                                </label>
+
+                                <input
+                                    id="market-asset-id"
+                                    type="number"
+                                    min="1"
+                                    placeholder="Optional"
+                                >
+                            </div>
+
+                            <label class="check-option">
+                                <input
+                                    id="market-include-inactive"
+                                    type="checkbox"
+                                >
+                                Include inactive assets
+                            </label>
+
+                            <label class="check-option">
+                                <input
+                                    id="market-include-prices"
+                                    type="checkbox"
+                                    checked
+                                >
+                                Include prices
+                            </label>
+
+                            <label class="check-option">
+                                <input
+                                    id="market-include-analytics"
+                                    type="checkbox"
+                                    checked
+                                >
+                                Include analytics
+                            </label>
+
+                            <label class="check-option">
+                                <input
+                                    id="market-include-signals"
+                                    type="checkbox"
+                                    checked
+                                >
+                                Include signals
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <form id="message-form" class="message-form">
+                    <label
+                        class="sr-only"
+                        for="message-input"
+                    >
+                        Message Artemis
+                    </label>
+
+                    <textarea
+                        id="message-input"
+                        rows="3"
+                        maxlength="100000"
+                        placeholder="Ask Artemis…"
+                        required
+                    ></textarea>
+
+                    <div class="composer-footer">
+                        <span id="composer-status">
+                            Private mode · Local processing
+                        </span>
+
+                        <button
+                            id="send-button"
+                            class="primary-button"
+                            type="submit"
+                        >
+                            Send
+                        </button>
+                    </div>
+                </form>
+            </section>
+        </main>
+    </div>
+
+    <div
+        id="notification"
+        class="notification hidden"
+        role="alert"
+    ></div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
