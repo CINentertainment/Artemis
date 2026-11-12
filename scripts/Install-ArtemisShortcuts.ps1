@@ -11,6 +11,10 @@ $stopScript = Join-Path `
     $PSScriptRoot `
     "Stop-Artemis.ps1"
 
+$iconPath = Join-Path `
+    $artemisPath `
+    "app\static\artemis.ico"
+
 $powershellPath = Join-Path `
     $env:SystemRoot `
     "System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -34,7 +38,10 @@ function New-ArtemisShortcut {
         [string]$ScriptPath,
 
         [Parameter(Mandatory = $true)]
-        [string]$Description
+        [string]$Description,
+
+        [Parameter(Mandatory = $true)]
+        [string]$IconPath
     )
 
     $shortcutPath = Join-Path `
@@ -61,7 +68,7 @@ function New-ArtemisShortcut {
     $shortcut.Description = $Description
 
     $shortcut.IconLocation = (
-        "$powershellPath,0"
+        "$IconPath,0"
     )
 
     $shortcut.WindowStyle = 7
@@ -84,6 +91,13 @@ try {
         throw (
             "The Artemis shutdown script was not " +
             "found: $stopScript"
+        )
+    }
+
+    if (-not (Test-Path $iconPath)) {
+        throw (
+            "The Artemis icon was not found: " +
+            $iconPath
         )
     }
 
@@ -110,7 +124,8 @@ try {
         -ScriptPath $startScript `
         -Description (
             "Start Artemis and open the dashboard"
-        )
+        ) `
+        -IconPath $iconPath
 
     $stopShortcutPath = New-ArtemisShortcut `
         -Shell $shell `
@@ -118,13 +133,18 @@ try {
         -ScriptPath $stopScript `
         -Description (
             "Stop services launched by Artemis"
-        )
+        ) `
+        -IconPath $iconPath
 
     Write-Host ""
 
     Write-Host `
         "Artemis desktop shortcuts installed." `
         -ForegroundColor Green
+
+    Write-Host ""
+    Write-Host "Icon:"
+    Write-Host $iconPath
 
     Write-Host ""
     Write-Host "Start shortcut:"
