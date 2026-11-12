@@ -1,3 +1,4 @@
+from hashlib import sha256
 from pathlib import Path
 
 from sqlalchemy import inspect
@@ -29,6 +30,14 @@ def build_test_engine(
     return engine
 
 
+def content_hash(
+    content: str,
+) -> str:
+    return sha256(
+        content.encode("utf-8")
+    ).hexdigest()
+
+
 def test_foundational_tables_are_created(
     tmp_path: Path,
 ):
@@ -42,6 +51,8 @@ def test_foundational_tables_are_created(
         "approval_requests",
         "audit_events",
         "conversations",
+        "information_records",
+        "information_sources",
         "messages",
         "user_preferences",
     }
@@ -112,5 +123,137 @@ def test_conversation_contains_messages(
             conversation.messages[1].role
             == "assistant"
         )
+
+    engine.dispose()
+
+
+def test_information_source_contains_records(
+    tmp_path: Path,
+):
+    engine = build_test_engine(tmp_path)
+
+    original_content = (
+        "Artemis preserves the original "
+        "retrieved information."
+    )
+
+    with Session(engine) as database:
+        source = models.InformationSource(
+            key="manual-entry",
+            name="Manual Entry",
+            source_type="manual",
+            description=(
+                "Information entered directly "
+                "by the operator."
+            ),
+        )
+
+        source.records.append(
+            models.InformationRecord(
+                external_id="manual-001",
+                record_type="text",
+                title="Foundation Record",
+                original_content=(
+                    original_content
+                ),
+                content_hash=content_hash(
+                    original_content
+                ),
+                source_locator=(
+                    "manual://manual-001"
+                ),
+                language="en",
+            )
+        )
+
+        database.add(source)
+        database.commit()
+        database.refresh(source)
+
+        assert source.id is not None
+        assert source.status == "active"
+        assert source.is_enabled is True
+        assert source.is_read_only is True
+        assert len(source.records) == 1
+
+        record = source.records[0]
+
+        assert record.id is not None
+        assert record.source_id == source.id
+        assert (
+            record.original_content
+            == original_content
+        )
+
+        assert (
+            record.content_hash
+            == content_hash(
+                original_content
+            )
+        )
+
+        assert record.status == "stored"
+        assert record.is_duplicate is False
+        assert record.retrieved_at is not None
+
+    engine.dispose()
+
+
+def test_information_record_tracks_duplicate(
+    tmp_path: Path,
+):
+    engine = build_test_engine(tmp_path)
+
+    original_content = (
+        "The same information appeared twice."
+    )
+
+    with Session(engine) as database:
+        source = models.InformationSource(
+            key="duplicate-test",
+            name="Duplicate Test Source",
+            source_type="manual",
+        )
+
+        original = models.InformationRecord(
+            external_id="record-001",
+            original_content=original_content,
+            content_hash=content_hash(
+                original_content
+            ),
+        )
+
+        duplicate = models.InformationRecord(
+            external_id="record-002",
+            original_content=original_content,
+            content_hash=content_hash(
+                original_content
+            ),
+            is_duplicate=True,
+            duplicate_of=original,
+        )
+
+        source.records.extend(
+            [
+                original,
+                duplicate,
+            ]
+        )
+
+        database.add(source)
+        database.commit()
+        database.refresh(original)
+        database.refresh(duplicate)
+
+        assert original.is_duplicate is False
+        assert duplicate.is_duplicate is True
+
+        assert (
+            duplicate.duplicate_of_id
+            == original.id
+        )
+
+        assert duplicate.duplicate_of is original
+        assert duplicate in original.duplicates
 
     engine.dispose()

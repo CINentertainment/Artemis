@@ -8,6 +8,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import (
@@ -246,4 +247,248 @@ class AuditEvent(Base):
         nullable=False,
         server_default=func.now(),
         index=True,
+    )
+
+
+class InformationSource(Base):
+    __tablename__ = "information_sources"
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+
+    key: Mapped[str] = mapped_column(
+        String(100),
+        unique=True,
+        nullable=False,
+        index=True,
+    )
+
+    name: Mapped[str] = mapped_column(
+        String(200),
+        nullable=False,
+    )
+
+    source_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="manual",
+        index=True,
+    )
+
+    description: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    location: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="active",
+        index=True,
+    )
+
+    is_enabled: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    is_read_only: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=True,
+    )
+
+    notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    records: Mapped[
+        list["InformationRecord"]
+    ] = relationship(
+        back_populates="source",
+        order_by="InformationRecord.retrieved_at",
+    )
+
+
+class InformationRecord(Base):
+    __tablename__ = "information_records"
+
+    __table_args__ = (
+        UniqueConstraint(
+            "source_id",
+            "external_id",
+            name=(
+                "uq_information_records_"
+                "source_external_id"
+            ),
+        ),
+    )
+
+    id: Mapped[str] = mapped_column(
+        String(36),
+        primary_key=True,
+        default=lambda: str(uuid4()),
+    )
+
+    source_id: Mapped[str] = mapped_column(
+        ForeignKey(
+            "information_sources.id",
+            ondelete="RESTRICT",
+        ),
+        nullable=False,
+        index=True,
+    )
+
+    external_id: Mapped[str | None] = mapped_column(
+        String(255),
+        nullable=True,
+        index=True,
+    )
+
+    record_type: Mapped[str] = mapped_column(
+        String(50),
+        nullable=False,
+        default="text",
+        index=True,
+    )
+
+    title: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    original_content: Mapped[str] = mapped_column(
+        Text,
+        nullable=False,
+    )
+
+    normalized_content: Mapped[
+        str | None
+    ] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    content_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        index=True,
+    )
+
+    source_locator: Mapped[str | None] = (
+        mapped_column(
+            Text,
+            nullable=True,
+        )
+    )
+
+    mime_type: Mapped[str | None] = mapped_column(
+        String(100),
+        nullable=True,
+    )
+
+    language: Mapped[str | None] = mapped_column(
+        String(20),
+        nullable=True,
+    )
+
+    metadata_json: Mapped[str | None] = (
+        mapped_column(
+            Text,
+            nullable=True,
+        )
+    )
+
+    published_at: Mapped[
+        datetime | None
+    ] = mapped_column(
+        DateTime,
+        nullable=True,
+        index=True,
+    )
+
+    retrieved_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        index=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        default="stored",
+        index=True,
+    )
+
+    is_duplicate: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        default=False,
+    )
+
+    duplicate_of_id: Mapped[
+        str | None
+    ] = mapped_column(
+        ForeignKey(
+            "information_records.id",
+            ondelete="SET NULL",
+        ),
+        nullable=True,
+        index=True,
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime,
+        nullable=False,
+        server_default=func.now(),
+        onupdate=func.now(),
+    )
+
+    source: Mapped["InformationSource"] = (
+        relationship(
+            back_populates="records",
+        )
+    )
+
+    duplicate_of: Mapped[
+        "InformationRecord | None"
+    ] = relationship(
+        remote_side="InformationRecord.id",
+        back_populates="duplicates",
+    )
+
+    duplicates: Mapped[
+        list["InformationRecord"]
+    ] = relationship(
+        back_populates="duplicate_of",
     )
