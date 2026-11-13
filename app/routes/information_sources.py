@@ -10,7 +10,13 @@ from fastapi import (
     status,
 )
 from sqlalchemy.orm import Session
+from pydantic import BaseModel, Field
 
+from app.services.information_records import (
+    BlankRecordContentError,
+    RecordContentConflictError,
+    ingest_text_record,
+)
 from app.database import get_database
 from app.models import InformationSource
 from app.schemas import (
@@ -251,4 +257,80 @@ def remove_information_source(
 
     return Response(
         status_code=status.HTTP_204_NO_CONTENT
+    )
+class ManualRecordCreate(BaseModel):
+    content: str = Field(min_length=1)
+    title: str | None = None
+    external_id: str | None = Field(default=None, max_length=255)
+    source_locator: str | None = None
+
+
+class ManualRecordResponse(BaseModel):
+    id: str
+    source_key: str
+    external_id: str | None
+    content_hash: str
+    is_duplicate: bool
+    duplicate_of_id: str | None
+
+
+@router.post(
+    "/{key}/records",
+    response_model=ManualRecordResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={200: {"model": ManualRecordResponse}},
+)
+def create_manual_record(
+    key: InformationSourceKey,
+    payload: ManualRecordCreate,
+    response: Response,
+    database: Session = Depends(get_database),
+) -> ManualRecordResponse:
+    source = get_information_source(database, key)
+    if source is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Information source not found.",
+        )
+
+    if (
+        source.source_type != "manual"
+        or not source.is_enabled
+        or source.status == "archived"
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Text ingestion requires an enabled, non-archived manual source.",
+        )
+
+    try:
+        record, created = ingest_text_record(
+            database,
+            source,
+            **payload.model_dump(),
+        )
+    except BlankRecordContentError as error:
+        raise HTTPException(status_code=422, detail=str(error)) from error
+    except RecordContentConflictError as error:
+        raise HTTPException(status_code=409, detail=str(error)) from error
+
+    if created:
+        record_audit_event(
+            database,
+            event_type="information",
+            action="information_record_created",
+            outcome="success",
+            resource_type="information_record",
+            resource_id=record.id,
+        )
+    else:
+        response.status_code = status.HTTP_200_OK
+
+    return ManualRecordResponse(
+        id=record.id,
+        source_key=source.key,
+        external_id=record.external_id,
+        content_hash=record.content_hash,
+        is_duplicate=record.is_duplicate,
+        duplicate_of_id=record.duplicate_of_id,
     )
