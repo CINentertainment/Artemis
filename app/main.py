@@ -18,6 +18,9 @@ from app.routes.approvals import (
 from app.routes.conversations import (
     router as conversations_router,
 )
+from app.routes.information_sources import (
+    router as information_sources_router,
+)
 from app.routes.preferences import (
     router as preferences_router,
 )
@@ -88,6 +91,7 @@ app.mount(
 app.include_router(approvals_router)
 app.include_router(preferences_router)
 app.include_router(conversations_router)
+app.include_router(information_sources_router)
 
 
 @app.get(

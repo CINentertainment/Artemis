@@ -248,3 +248,102 @@ class ApprovalResponse(BaseModel):
     decision_reason: str | None
     created_at: datetime
     decided_at: datetime | None
+
+InformationSourceType = Literal[
+    "manual",
+    "document",
+    "url",
+    "api",
+    "connector",
+    "feed",
+]
+
+InformationSourceStatus = Literal[
+    "active",
+    "inactive",
+    "archived",
+]
+
+
+class InformationSourceCreate(BaseModel):
+    key: str = Field(
+        min_length=1,
+        max_length=100,
+        pattern=(
+            r"^[a-z]"
+            r"[a-z0-9_.-]{0,99}$"
+        ),
+    )
+
+    name: str = Field(
+        min_length=1,
+        max_length=200,
+    )
+
+    source_type: InformationSourceType = (
+        "manual"
+    )
+
+    description: str | None = Field(
+        default=None,
+        max_length=10000,
+    )
+
+    location: str | None = Field(
+        default=None,
+        max_length=5000,
+    )
+
+    is_enabled: bool = True
+    is_read_only: bool = True
+
+    notes: str | None = Field(
+        default=None,
+        max_length=10000,
+    )
+
+
+class InformationSourceUpdate(BaseModel):
+    name: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=200,
+    )
+
+    source_type: (
+        InformationSourceType | None
+    ) = None
+
+    description: str | None = Field(
+        default=None,
+        max_length=10000,
+    )
+
+    location: str | None = Field(
+        default=None,
+        max_length=5000,
+    )
+
+    status: InformationSourceStatus | None = None
+    is_enabled: bool | None = None
+    is_read_only: bool | None = None
+
+    notes: str | None = Field(
+        default=None,
+        max_length=10000,
+    )
+
+
+class InformationSourceResponse(BaseModel):
+    id: str
+    key: str
+    name: str
+    source_type: str
+    description: str | None
+    location: str | None
+    status: str
+    is_enabled: bool
+    is_read_only: bool
+    notes: str | None
+    created_at: datetime
+    updated_at: datetime
