@@ -506,6 +506,7 @@ def generate_conversation_response(
             conversation=conversation,
             user_content=payload.content,
             runtime=runtime,
+            information_records_query=payload.information_records_query,
             use_intel_notes=(
                 payload.use_intel_notes
             ),

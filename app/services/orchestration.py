@@ -29,6 +29,9 @@ from app.services.identity import (
     IdentityContextError,
     build_identity_context,
 )
+from app.services.information_record_retrieval import (
+    retrieve_information_record_context,
+)
 from app.services.market_retrieval import (
     MarketRetrievalResult,
     retrieve_market_lens_asset,
@@ -254,6 +257,7 @@ def run_conversation_turn(
     max_output_tokens: int = 2048,
     use_intel_notes: bool = False,
     intel_notes_query: str | None = None,
+    information_records_query: str | None = None,
     intel_notes_connector: (
         IntelNotesConnector | None
     ) = None,
@@ -298,6 +302,14 @@ def run_conversation_turn(
     supplemental_contexts: list[str] = []
 
     try:
+        if information_records_query is not None:
+            supplemental_contexts.append(
+                retrieve_information_record_context(
+                    database,
+                    query=information_records_query,
+                )
+            )
+
         if (
             use_intel_notes
             and intel_notes_connector is not None

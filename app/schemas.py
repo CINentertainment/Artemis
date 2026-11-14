@@ -153,6 +153,11 @@ class ConversationTurnCreate(BaseModel):
         max_length=100000,
     )
 
+    information_records_query: str | None = Field(
+        default=None,
+        min_length=1,
+        max_length=1500,
+    )
     use_intel_notes: bool = False
 
     intel_notes_query: str | None = Field(
