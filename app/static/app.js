@@ -793,3 +793,49 @@ async function initialize() {
 }
 
 initialize();
+const saveNoteForm = document.getElementById("save-note-form");
+
+if (saveNoteForm) {
+    const titleInput = document.getElementById("save-note-title");
+    const contentInput = document.getElementById("save-note-content");
+    const saveButton = document.getElementById("save-note-button");
+    const saveStatus = document.getElementById("save-note-status");
+
+    saveNoteForm.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (saveButton.disabled) {
+            return;
+        }
+
+        const title = titleInput.value.trim();
+        const content = contentInput.value.trim();
+
+        if (!title || !content) {
+            saveStatus.textContent = "Enter a title and note text.";
+            return;
+        }
+
+        saveButton.disabled = true;
+        saveStatus.textContent = "Saving note…";
+
+        try {
+            const record = await requestJson(
+                "/information-sources/dashboard-notes/records",
+                {
+                    method: "POST",
+                    body: JSON.stringify({ title, content }),
+                },
+            );
+
+            if (titleInput.value.trim() === title && contentInput.value.trim() === content) {
+                saveNoteForm.reset();
+            }
+            saveStatus.textContent = `Note saved. Record ID: ${record.id}`;
+        } catch (error) {
+            saveStatus.textContent = `Could not save note. ${error.message}`;
+        } finally {
+            saveButton.disabled = false;
+        }
+    });
+}

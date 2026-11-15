@@ -574,6 +574,20 @@
                             </button>
                         </div>
                     </form>
+                    <details class="source-options">
+    <summary>Save a note</summary>
+
+    <form id="save-note-form">
+        <label for="save-note-title">Title</label>
+        <input id="save-note-title" name="title" type="text" required>
+
+        <label for="save-note-content">Note text</label>
+        <textarea id="save-note-content" name="content" rows="4" required></textarea>
+
+        <button id="save-note-button" type="submit">Save note</button>
+        <p id="save-note-status" role="status"></p>
+    </form>
+</details>
                 </div>
             </section>
         </main>
