@@ -61,6 +61,9 @@ const elements = {
     intelNotesQuery: document.getElementById(
         "intel-notes-query"
     ),
+    informationRecordsQuery: document.getElementById(
+        "information-records-query"
+    ),
     useRiskTracker: document.getElementById(
         "use-risk-tracker"
     ),
@@ -551,7 +554,12 @@ function buildTurnPayload(content) {
             elements.useMarketLens.checked
         ),
     };
+    const informationRecordsQuery =
+        elements.informationRecordsQuery.value.trim();
 
+    if (informationRecordsQuery) {
+        payload.information_records_query = informationRecordsQuery;
+    }
     if (payload.use_intel_notes) {
         const query = (
             elements.intelNotesQuery
