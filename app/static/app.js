@@ -7,125 +7,53 @@ const state = {
 };
 
 const elements = {
-    conversationList: document.getElementById(
-        "conversation-list"
-    ),
-    newConversationButton: document.getElementById(
-        "new-conversation-button"
-    ),
-    welcomeNewOperationButton: document.getElementById(
-        "welcome-new-operation-button"
-    ),
-    conversationTitle: document.getElementById(
-        "conversation-title"
-    ),
-    conversationSubtitle: document.getElementById(
-        "conversation-subtitle"
-    ),
-    welcomePanel: document.getElementById(
-        "welcome-panel"
-    ),
-    messagePanel: document.getElementById(
-        "message-panel"
-    ),
-    messageForm: document.getElementById(
-        "message-form"
-    ),
-    messageInput: document.getElementById(
-        "message-input"
-    ),
-    sendButton: document.getElementById(
-        "send-button"
-    ),
-    composerStatus: document.getElementById(
-        "composer-status"
-    ),
-    notification: document.getElementById(
-        "notification"
-    ),
-    systemStatus: document.getElementById(
-        "system-status"
-    ),
-    systemStatusText: document.getElementById(
-        "system-status-text"
-    ),
-    refreshStatusButton: document.getElementById(
-        "refresh-status-button"
-    ),
-    useIntelNotes: document.getElementById(
-        "use-intel-notes"
-    ),
-    intelNotesOptions: document.getElementById(
-        "intel-notes-options"
-    ),
-    intelNotesQuery: document.getElementById(
-        "intel-notes-query"
-    ),
-    informationRecordsQuery: document.getElementById(
-        "information-records-query"
-    ),
-    useRiskTracker: document.getElementById(
-        "use-risk-tracker"
-    ),
-    riskTrackerOptions: document.getElementById(
-        "risk-tracker-options"
-    ),
-    riskCaseId: document.getElementById(
-        "risk-case-id"
-    ),
-    riskIncludeArchived: document.getElementById(
-        "risk-include-archived"
-    ),
-    riskIncludeRelated: document.getElementById(
-        "risk-include-related"
-    ),
-    useMarketLens: document.getElementById(
-        "use-market-lens"
-    ),
-    marketLensOptions: document.getElementById(
-        "market-lens-options"
-    ),
-    marketAssetId: document.getElementById(
-        "market-asset-id"
-    ),
-    marketIncludeInactive: document.getElementById(
-        "market-include-inactive"
-    ),
-    marketIncludePrices: document.getElementById(
-        "market-include-prices"
-    ),
-    marketIncludeAnalytics: document.getElementById(
-        "market-include-analytics"
-    ),
-    marketIncludeSignals: document.getElementById(
-        "market-include-signals"
-    ),
+    conversationList: document.getElementById("conversation-list"),
+    newConversationButton: document.getElementById("new-conversation-button"),
+    welcomeNewOperationButton: document.getElementById("welcome-new-operation-button"),
+    conversationTitle: document.getElementById("conversation-title"),
+    conversationSubtitle: document.getElementById("conversation-subtitle"),
+    welcomePanel: document.getElementById("welcome-panel"),
+    messagePanel: document.getElementById("message-panel"),
+    messageForm: document.getElementById("message-form"),
+    messageInput: document.getElementById("message-input"),
+    sendButton: document.getElementById("send-button"),
+    composerStatus: document.getElementById("composer-status"),
+    notification: document.getElementById("notification"),
+    systemStatus: document.getElementById("system-status"),
+    systemStatusText: document.getElementById("system-status-text"),
+    refreshStatusButton: document.getElementById("refresh-status-button"),
+    useIntelNotes: document.getElementById("use-intel-notes"),
+    intelNotesOptions: document.getElementById("intel-notes-options"),
+    intelNotesQuery: document.getElementById("intel-notes-query"),
+    informationRecordsQuery: document.getElementById("information-records-query"),
+    useRiskTracker: document.getElementById("use-risk-tracker"),
+    riskTrackerOptions: document.getElementById("risk-tracker-options"),
+    riskCaseId: document.getElementById("risk-case-id"),
+    riskIncludeArchived: document.getElementById("risk-include-archived"),
+    riskIncludeRelated: document.getElementById("risk-include-related"),
+    useMarketLens: document.getElementById("use-market-lens"),
+    marketLensOptions: document.getElementById("market-lens-options"),
+    marketAssetId: document.getElementById("market-asset-id"),
+    marketIncludeInactive: document.getElementById("market-include-inactive"),
+    marketIncludePrices: document.getElementById("market-include-prices"),
+    marketIncludeAnalytics: document.getElementById("market-include-analytics"),
+    marketIncludeSignals: document.getElementById("market-include-signals"),
 };
 
-async function requestJson(
-    url,
-    options = {},
-) {
-    const response = await fetch(
-        url,
-        {
-            ...options,
-            headers: {
-                "Content-Type": "application/json",
-                ...(options.headers || {}),
-            },
+async function requestJson(url, options = {}) {
+    const response = await fetch(url, {
+        ...options,
+        headers: {
+            "Content-Type": "application/json",
+            ...(options.headers || {}),
         },
-    );
+    });
 
     if (!response.ok) {
-        let message = (
-            `Request failed with status `
-            + `${response.status}.`
-        );
+        let message = `Request failed with status ${response.status}.`;
 
         try {
             const errorData = await response.json();
-
             if (errorData.detail) {
                 message = errorData.detail;
             }
@@ -154,102 +82,51 @@ function formatDate(value) {
         return value;
     }
 
-    return parsed.toLocaleString(
-        [],
-        {
-            month: "short",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-        },
-    );
+    return parsed.toLocaleString([], {
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+    });
 }
 
-function showNotification(
-    message,
-    isError = false,
-) {
+function showNotification(message, isError = false) {
     elements.notification.textContent = message;
-    elements.notification.classList.toggle(
-        "error",
-        isError,
-    );
-    elements.notification.classList.remove(
-        "hidden"
-    );
+    elements.notification.classList.toggle("error", isError);
+    elements.notification.classList.remove("hidden");
 
-    window.clearTimeout(
-        showNotification.timeoutId
-    );
+    window.clearTimeout(showNotification.timeoutId);
 
-    showNotification.timeoutId = (
-        window.setTimeout(
-            () => {
-                elements.notification.classList.add(
-                    "hidden"
-                );
-            },
-            4500,
-        )
-    );
+    showNotification.timeoutId = window.setTimeout(() => {
+        elements.notification.classList.add("hidden");
+    }, 4500);
 }
 
-function setSystemStatus(
-    status,
-    label,
-) {
-    elements.systemStatus.className = (
-        `status-pill status-${status}`
-    );
-
+function setSystemStatus(status, label) {
+    elements.systemStatus.className = `status-pill status-${status}`;
     elements.systemStatusText.textContent = label;
 }
 
 async function refreshSystemStatus() {
-    setSystemStatus(
-        "checking",
-        "Checking",
-    );
+    setSystemStatus("checking", "Checking");
 
     try {
-        const health = await requestJson(
-            "/services/health"
-        );
-
-        const status = (
-            health.overall_status
-            || "unavailable"
-        );
+        const health = await requestJson("/services/health");
+        const status = health.overall_status || "unavailable";
 
         if (status === "healthy") {
-            setSystemStatus(
-                "healthy",
-                "Healthy",
-            );
+            setSystemStatus("healthy", "Healthy");
         } else if (status === "degraded") {
-            setSystemStatus(
-                "degraded",
-                "Degraded",
-            );
+            setSystemStatus("degraded", "Degraded");
         } else {
-            setSystemStatus(
-                "unavailable",
-                "Unavailable",
-            );
+            setSystemStatus("unavailable", "Unavailable");
         }
     } catch {
         try {
             await requestJson("/health");
-
-            setSystemStatus(
-                "degraded",
-                "Artemis online",
-            );
+            setSystemStatus("degraded", "Artemis online");
         } catch {
-            setSystemStatus(
-                "unavailable",
-                "Offline",
-            );
+            setSystemStatus("unavailable", "Offline");
         }
     }
 }
@@ -261,26 +138,16 @@ function renderConversationList() {
         const empty = document.createElement("p");
         empty.className = "muted-text";
         empty.textContent = "No conversations yet.";
-
         elements.conversationList.appendChild(empty);
         return;
     }
 
-    for (
-        const conversation
-        of state.conversations
-    ) {
-        const button = document.createElement(
-            "button"
-        );
-
+    for (const conversation of state.conversations) {
+        const button = document.createElement("button");
         button.type = "button";
         button.className = "conversation-item";
 
-        if (
-            conversation.id
-            === state.currentConversationId
-        ) {
+        if (conversation.id === state.currentConversationId) {
             button.classList.add("active");
         }
 
@@ -289,44 +156,27 @@ function renderConversationList() {
 
         const title = document.createElement("div");
         title.className = "conversation-title";
-        title.textContent = (
-            conversation.title
-            || "Untitled operation"
-        );
+        title.textContent = conversation.title || "Untitled operation";
 
         const date = document.createElement("div");
         date.className = "conversation-date";
         date.textContent = formatDate(
-            conversation.updated_at
-            || conversation.created_at
+            conversation.updated_at || conversation.created_at,
         );
 
         copy.append(title, date);
         button.appendChild(copy);
+        button.addEventListener("click", () => {
+            selectConversation(conversation.id);
+        });
 
-        button.addEventListener(
-            "click",
-            () => {
-                selectConversation(
-                    conversation.id
-                );
-            },
-        );
-
-        elements.conversationList.appendChild(
-            button
-        );
+        elements.conversationList.appendChild(button);
     }
 }
 
-async function loadConversations(
-    selectFirst = false,
-) {
+async function loadConversations(selectFirst = false) {
     try {
-        state.conversations = await requestJson(
-            "/conversations?limit=100"
-        );
-
+        state.conversations = await requestJson("/conversations?limit=100");
         renderConversationList();
 
         if (
@@ -334,50 +184,29 @@ async function loadConversations(
             && !state.currentConversationId
             && state.conversations.length > 0
         ) {
-            await selectConversation(
-                state.conversations[0].id
-            );
+            await selectConversation(state.conversations[0].id);
         }
     } catch (error) {
         elements.conversationList.innerHTML = "";
 
         const message = document.createElement("p");
         message.className = "muted-text";
-        message.textContent = (
-            "Conversations could not be loaded."
-        );
+        message.textContent = "Conversations could not be loaded.";
+        elements.conversationList.appendChild(message);
 
-        elements.conversationList.appendChild(
-            message
-        );
-
-        showNotification(
-            error.message,
-            true,
-        );
+        showNotification(error.message, true);
     }
 }
 
 function renderMessage(message) {
-    const article = document.createElement(
-        "article"
-    );
-
+    const article = document.createElement("article");
     const isUser = message.role === "user";
 
-    article.className = (
-        `message ${
-            isUser
-                ? "message-user"
-                : "message-assistant"
-        }`
-    );
+    article.className = `message ${isUser ? "message-user" : "message-assistant"}`;
 
     const label = document.createElement("div");
     label.className = "message-label";
-    label.textContent = (
-        isUser ? "Operator" : "Artemis"
-    );
+    label.textContent = isUser ? "Operator" : "Artemis";
 
     const content = document.createElement("div");
     content.className = "message-content";
@@ -385,58 +214,51 @@ function renderMessage(message) {
 
     article.append(label, content);
 
+    if (
+        message.role === "assistant"
+        && message.id
+        && message.conversation_id
+        && saveNoteForm
+    ) {
+        const draftButton = document.createElement("button");
+        draftButton.type = "button";
+        draftButton.textContent = "Draft note";
+        draftButton.addEventListener("click", () => {
+            draftNote(message, draftButton);
+        });
+        article.appendChild(draftButton);
+    }
+
     elements.messagePanel.appendChild(article);
 }
 
 function scrollMessagesToBottom() {
-    elements.messagePanel.scrollTop = (
-        elements.messagePanel.scrollHeight
-    );
+    elements.messagePanel.scrollTop = elements.messagePanel.scrollHeight;
 }
 
-async function selectConversation(
-    conversationId,
-) {
+async function selectConversation(conversationId) {
     state.currentConversationId = conversationId;
-
     renderConversationList();
 
-    const conversation = (
-        state.conversations.find(
-            (item) => item.id === conversationId
-        )
+    const conversation = state.conversations.find(
+        (item) => item.id === conversationId,
     );
 
-    elements.conversationTitle.textContent = (
-        conversation?.title
-        || "Conversation"
-    );
+    elements.conversationTitle.textContent = conversation?.title || "Conversation";
+    elements.conversationSubtitle.textContent = "Private, locally stored operation record";
 
-    elements.conversationSubtitle.textContent = (
-        "Private, locally stored operation record"
-    );
-
-    elements.welcomePanel.classList.add(
-        "hidden"
-    );
-
-    elements.messagePanel.classList.remove(
-        "hidden"
-    );
-
+    elements.welcomePanel.classList.add("hidden");
+    elements.messagePanel.classList.remove("hidden");
     elements.messagePanel.replaceChildren();
 
     const loading = document.createElement("p");
     loading.className = "muted-text";
     loading.textContent = "Loading messages…";
-
     elements.messagePanel.appendChild(loading);
 
     try {
         const messages = await requestJson(
-            `/conversations/${
-                conversationId
-            }/messages?limit=500`
+            `/conversations/${conversationId}/messages?limit=500`,
         );
 
         elements.messagePanel.replaceChildren();
@@ -444,10 +266,7 @@ async function selectConversation(
         if (messages.length === 0) {
             const empty = document.createElement("p");
             empty.className = "muted-text";
-            empty.textContent = (
-                "This conversation has no messages."
-            );
-
+            empty.textContent = "This conversation has no messages.";
             elements.messagePanel.appendChild(empty);
         } else {
             for (const message of messages) {
@@ -462,35 +281,20 @@ async function selectConversation(
 
         const failure = document.createElement("p");
         failure.className = "muted-text";
-        failure.textContent = (
-            "Messages could not be loaded."
-        );
-
+        failure.textContent = "Messages could not be loaded.";
         elements.messagePanel.appendChild(failure);
 
-        showNotification(
-            error.message,
-            true,
-        );
+        showNotification(error.message, true);
     }
 }
 
-async function createConversation(
-    title,
-) {
-    const conversation = await requestJson(
-        "/conversations",
-        {
-            method: "POST",
-            body: JSON.stringify({
-                title: title || null,
-            }),
-        },
-    );
+async function createConversation(title) {
+    const conversation = await requestJson("/conversations", {
+        method: "POST",
+        body: JSON.stringify({ title: title || null }),
+    });
 
-    state.currentConversationId = (
-        conversation.id
-    );
+    state.currentConversationId = conversation.id;
 
     await loadConversations();
     await selectConversation(conversation.id);
@@ -499,24 +303,16 @@ async function createConversation(
 }
 
 async function handleNewConversation() {
-    const title = window.prompt(
-        "Operation title:",
-        "New Artemis Operation",
-    );
+    const title = window.prompt("Operation title:", "New Artemis Operation");
 
     if (title === null) {
         return;
     }
 
     try {
-        await createConversation(
-            title.trim() || null
-        );
+        await createConversation(title.trim() || null);
     } catch (error) {
-        showNotification(
-            error.message,
-            true,
-        );
+        showNotification(error.message, true);
     }
 }
 
@@ -529,13 +325,8 @@ function optionalPositiveInteger(element) {
 
     const parsed = Number.parseInt(value, 10);
 
-    if (
-        !Number.isInteger(parsed)
-        || parsed < 1
-    ) {
-        throw new Error(
-            "IDs must be positive whole numbers."
-        );
+    if (!Number.isInteger(parsed) || parsed < 1) {
+        throw new Error("IDs must be positive whole numbers.");
     }
 
     return parsed;
@@ -544,76 +335,34 @@ function optionalPositiveInteger(element) {
 function buildTurnPayload(content) {
     const payload = {
         content,
-        use_intel_notes: (
-            elements.useIntelNotes.checked
-        ),
-        use_risk_tracker: (
-            elements.useRiskTracker.checked
-        ),
-        use_market_lens: (
-            elements.useMarketLens.checked
-        ),
+        use_intel_notes: elements.useIntelNotes.checked,
+        use_risk_tracker: elements.useRiskTracker.checked,
+        use_market_lens: elements.useMarketLens.checked,
     };
-    const informationRecordsQuery =
-        elements.informationRecordsQuery.value.trim();
+
+    const informationRecordsQuery = elements.informationRecordsQuery.value.trim();
 
     if (informationRecordsQuery) {
         payload.information_records_query = informationRecordsQuery;
     }
-    if (payload.use_intel_notes) {
-        const query = (
-            elements.intelNotesQuery
-            .value
-            .trim()
-        );
 
-        payload.intel_notes_query = (
-            query || null
-        );
+    if (payload.use_intel_notes) {
+        const query = elements.intelNotesQuery.value.trim();
+        payload.intel_notes_query = query || null;
     }
 
     if (payload.use_risk_tracker) {
-        payload.risk_tracker_case_id = (
-            optionalPositiveInteger(
-                elements.riskCaseId
-            )
-        );
-
-        payload.risk_tracker_include_archived = (
-            elements.riskIncludeArchived.checked
-        );
-
-        payload.risk_tracker_include_related = (
-            elements.riskIncludeRelated.checked
-        );
+        payload.risk_tracker_case_id = optionalPositiveInteger(elements.riskCaseId);
+        payload.risk_tracker_include_archived = elements.riskIncludeArchived.checked;
+        payload.risk_tracker_include_related = elements.riskIncludeRelated.checked;
     }
 
     if (payload.use_market_lens) {
-        payload.market_lens_asset_id = (
-            optionalPositiveInteger(
-                elements.marketAssetId
-            )
-        );
-
-        payload.market_lens_include_inactive = (
-            elements
-            .marketIncludeInactive
-            .checked
-        );
-
-        payload.market_lens_include_prices = (
-            elements.marketIncludePrices.checked
-        );
-
-        payload.market_lens_include_analytics = (
-            elements
-            .marketIncludeAnalytics
-            .checked
-        );
-
-        payload.market_lens_include_signals = (
-            elements.marketIncludeSignals.checked
-        );
+        payload.market_lens_asset_id = optionalPositiveInteger(elements.marketAssetId);
+        payload.market_lens_include_inactive = elements.marketIncludeInactive.checked;
+        payload.market_lens_include_prices = elements.marketIncludePrices.checked;
+        payload.market_lens_include_analytics = elements.marketIncludeAnalytics.checked;
+        payload.market_lens_include_signals = elements.marketIncludeSignals.checked;
     }
 
     return payload;
@@ -624,16 +373,11 @@ function setSending(sending) {
 
     elements.sendButton.disabled = sending;
     elements.messageInput.disabled = sending;
+    elements.sendButton.textContent = sending ? "Processing…" : "Transmit";
 
-    elements.sendButton.textContent = (
-        sending ? "Processing…" : "Transmit"
-    );
-
-    elements.composerStatus.textContent = (
-        sending
-            ? "ARTEMIS PROCESSING // LOCAL NODE"
-            : "PRIVATE MODE // LOCAL PROCESSING"
-    );
+    elements.composerStatus.textContent = sending
+        ? "ARTEMIS PROCESSING // LOCAL NODE"
+        : "PRIVATE MODE // LOCAL PROCESSING";
 }
 
 async function handleMessageSubmit(event) {
@@ -643,9 +387,7 @@ async function handleMessageSubmit(event) {
         return;
     }
 
-    const content = (
-        elements.messageInput.value.trim()
-    );
+    const content = elements.messageInput.value.trim();
 
     if (!content) {
         return;
@@ -655,36 +397,23 @@ async function handleMessageSubmit(event) {
         setSending(true);
 
         if (!state.currentConversationId) {
-            const generatedTitle = (
-                content.length > 60
-                    ? `${content.slice(0, 57)}…`
-                    : content
-            );
+            const generatedTitle = content.length > 60
+                ? `${content.slice(0, 57)}…`
+                : content;
 
-            await createConversation(
-                generatedTitle
-            );
+            await createConversation(generatedTitle);
         }
 
-        const payload = buildTurnPayload(
-            content
-        );
-
+        const payload = buildTurnPayload(content);
         const response = await requestJson(
-            `/conversations/${
-                state.currentConversationId
-            }/respond`,
+            `/conversations/${state.currentConversationId}/respond`,
             {
                 method: "POST",
                 body: JSON.stringify(payload),
             },
         );
 
-        const emptyMessage = (
-            elements.messagePanel.querySelector(
-                ".muted-text"
-            )
-        );
+        const emptyMessage = elements.messagePanel.querySelector(".muted-text");
 
         if (emptyMessage) {
             emptyMessage.remove();
@@ -698,89 +427,41 @@ async function handleMessageSubmit(event) {
         scrollMessagesToBottom();
         await loadConversations();
     } catch (error) {
-        showNotification(
-            error.message,
-            true,
-        );
+        showNotification(error.message, true);
     } finally {
         setSending(false);
         elements.messageInput.focus();
     }
 }
 
-function toggleOptions(
-    checkbox,
-    options,
-) {
-    options.classList.toggle(
-        "hidden",
-        !checkbox.checked,
-    );
+function toggleOptions(checkbox, options) {
+    options.classList.toggle("hidden", !checkbox.checked);
 }
 
 function bindEvents() {
-    elements.newConversationButton.addEventListener(
-        "click",
-        handleNewConversation,
-    );
+    elements.newConversationButton.addEventListener("click", handleNewConversation);
+    elements.welcomeNewOperationButton.addEventListener("click", handleNewConversation);
+    elements.refreshStatusButton.addEventListener("click", refreshSystemStatus);
+    elements.messageForm.addEventListener("submit", handleMessageSubmit);
 
-    elements.welcomeNewOperationButton.addEventListener(
-        "click",
-        handleNewConversation,
-    );
+    elements.messageInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" && event.ctrlKey) {
+            event.preventDefault();
+            elements.messageForm.requestSubmit();
+        }
+    });
 
-    elements.refreshStatusButton.addEventListener(
-        "click",
-        refreshSystemStatus,
-    );
+    elements.useIntelNotes.addEventListener("change", () => {
+        toggleOptions(elements.useIntelNotes, elements.intelNotesOptions);
+    });
 
-    elements.messageForm.addEventListener(
-        "submit",
-        handleMessageSubmit,
-    );
+    elements.useRiskTracker.addEventListener("change", () => {
+        toggleOptions(elements.useRiskTracker, elements.riskTrackerOptions);
+    });
 
-    elements.messageInput.addEventListener(
-        "keydown",
-        (event) => {
-            if (
-                event.key === "Enter"
-                && event.ctrlKey
-            ) {
-                event.preventDefault();
-                elements.messageForm.requestSubmit();
-            }
-        },
-    );
-
-    elements.useIntelNotes.addEventListener(
-        "change",
-        () => {
-            toggleOptions(
-                elements.useIntelNotes,
-                elements.intelNotesOptions,
-            );
-        },
-    );
-
-    elements.useRiskTracker.addEventListener(
-        "change",
-        () => {
-            toggleOptions(
-                elements.useRiskTracker,
-                elements.riskTrackerOptions,
-            );
-        },
-    );
-
-    elements.useMarketLens.addEventListener(
-        "change",
-        () => {
-            toggleOptions(
-                elements.useMarketLens,
-                elements.marketLensOptions,
-            );
-        },
-    );
+    elements.useMarketLens.addEventListener("change", () => {
+        toggleOptions(elements.useMarketLens, elements.marketLensOptions);
+    });
 }
 
 async function initialize() {
@@ -792,7 +473,6 @@ async function initialize() {
     ]);
 }
 
-initialize();
 const saveNoteForm = document.getElementById("save-note-form");
 
 if (saveNoteForm) {
@@ -828,9 +508,13 @@ if (saveNoteForm) {
                 },
             );
 
-            if (titleInput.value.trim() === title && contentInput.value.trim() === content) {
+            if (
+                titleInput.value.trim() === title
+                && contentInput.value.trim() === content
+            ) {
                 saveNoteForm.reset();
             }
+
             saveStatus.textContent = `Note saved. Record ID: ${record.id}`;
         } catch (error) {
             saveStatus.textContent = `Could not save note. ${error.message}`;
@@ -839,3 +523,57 @@ if (saveNoteForm) {
         }
     });
 }
+
+async function draftNote(message, button) {
+    const titleInput = document.getElementById("save-note-title");
+    const contentInput = document.getElementById("save-note-content");
+    const saveButton = document.getElementById("save-note-button");
+    const saveStatus = document.getElementById("save-note-status");
+    const notePanel = saveNoteForm.closest("details");
+
+    if (notePanel) {
+        notePanel.open = true;
+    }
+
+    if (titleInput.value || contentInput.value || saveButton.disabled) {
+        showNotification("Save or clear the current note before drafting another.", true);
+        titleInput.focus();
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Drafting…";
+
+    try {
+        const conversationId = encodeURIComponent(message.conversation_id);
+        const messageId = encodeURIComponent(message.id);
+        const draft = await requestJson(
+            `/conversations/${conversationId}/messages/${messageId}/draft-note`,
+            { method: "POST" },
+        );
+
+        if (
+            !button.isConnected
+            || state.currentConversationId !== message.conversation_id
+        ) {
+            return;
+        }
+
+        if (titleInput.value || contentInput.value || saveButton.disabled) {
+            showNotification("The current note was kept. Clear it to draft another.", true);
+            return;
+        }
+
+        titleInput.value = draft.title;
+        contentInput.value = draft.content;
+        saveStatus.textContent = "Review or edit the draft, then click Save note.";
+        titleInput.focus();
+    } catch (error) {
+        showNotification(`Could not draft note. ${error.message}`, true);
+    } finally {
+        button.disabled = false;
+        button.textContent = "Draft note";
+    }
+}
+
+initialize();
