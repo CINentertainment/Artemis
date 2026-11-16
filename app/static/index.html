@@ -2,29 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
-    <meta
-        name="description"
-        content="Artemis private local intelligence command interface"
-    >
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Artemis private local intelligence command interface">
     <title>Artemis // Intelligence Command</title>
 
-    <link
-        rel="icon"
-        type="image/x-icon"
-        href="/static/artemis.ico"
-    >
-    <link
-        rel="apple-touch-icon"
-        href="/static/artemis-icon.png"
-    >
-    <link
-        rel="stylesheet"
-        href="/static/styles.css"
-    >
+    <link rel="icon" type="image/x-icon" href="/static/artemis.ico">
+    <link rel="apple-touch-icon" href="/static/artemis-icon.png">
+    <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
     <div class="ambient-field" aria-hidden="true">
@@ -38,10 +22,7 @@
         <aside class="sidebar">
             <div class="brand">
                 <div class="brand-mark">
-                    <img
-                        src="/static/artemis-icon.png"
-                        alt="Artemis"
-                    >
+                    <img src="/static/artemis-icon.png" alt="Artemis">
                 </div>
 
                 <div class="brand-copy">
@@ -167,10 +148,7 @@
                 </div>
             </header>
 
-            <section
-                id="welcome-panel"
-                class="welcome-panel"
-            >
+            <section id="welcome-panel" class="welcome-panel">
                 <div class="welcome-copy">
                     <div class="section-kicker">
                         PRIVATE INTELLIGENCE ENVIRONMENT
@@ -220,19 +198,11 @@
 
                     <div class="orbit orbit-inner"></div>
 
-                    <div
-                        class="orbital-crosshair crosshair-horizontal"
-                    ></div>
-
-                    <div
-                        class="orbital-crosshair crosshair-vertical"
-                    ></div>
+                    <div class="orbital-crosshair crosshair-horizontal"></div>
+                    <div class="orbital-crosshair crosshair-vertical"></div>
 
                     <div class="welcome-mark">
-                        <img
-                            src="/static/artemis-icon.png"
-                            alt=""
-                        >
+                        <img src="/static/artemis-icon.png" alt="">
                     </div>
 
                     <div class="orbit-label orbit-label-one">
@@ -254,16 +224,11 @@
                 <div class="capability-grid">
                     <article class="capability-card capability-intel">
                         <div class="capability-topline">
-                            <span class="capability-index">
-                                SOURCE 01
-                            </span>
-                            <span class="capability-state">
-                                READ
-                            </span>
+                            <span class="capability-index">SOURCE 01</span>
+                            <span class="capability-state">READ</span>
                         </div>
 
                         <div class="capability-icon">IN</div>
-
                         <h3>Intel Notes</h3>
 
                         <p>
@@ -276,16 +241,11 @@
 
                     <article class="capability-card capability-risk">
                         <div class="capability-topline">
-                            <span class="capability-index">
-                                SOURCE 02
-                            </span>
-                            <span class="capability-state">
-                                READ
-                            </span>
+                            <span class="capability-index">SOURCE 02</span>
+                            <span class="capability-state">READ</span>
                         </div>
 
                         <div class="capability-icon">RT</div>
-
                         <h3>Risk Tracker</h3>
 
                         <p>
@@ -298,16 +258,11 @@
 
                     <article class="capability-card capability-market">
                         <div class="capability-topline">
-                            <span class="capability-index">
-                                SOURCE 03
-                            </span>
-                            <span class="capability-state">
-                                READ
-                            </span>
+                            <span class="capability-index">SOURCE 03</span>
+                            <span class="capability-state">READ</span>
                         </div>
 
                         <div class="capability-icon">ML</div>
-
                         <h3>Market Lens</h3>
 
                         <p>
@@ -341,13 +296,8 @@
 
                     <div class="retrieval-controls">
                         <div class="source-toggles">
-                            <label
-                                class="source-toggle source-toggle-intel"
-                            >
-                                <input
-                                    id="use-intel-notes"
-                                    type="checkbox"
-                                >
+                            <label class="source-toggle source-toggle-intel">
+                                <input id="use-intel-notes" type="checkbox">
 
                                 <span>
                                     <b>01</b>
@@ -361,13 +311,8 @@
                                 </span>
                             </label>
 
-                            <label
-                                class="source-toggle source-toggle-risk"
-                            >
-                                <input
-                                    id="use-risk-tracker"
-                                    type="checkbox"
-                                >
+                            <label class="source-toggle source-toggle-risk">
+                                <input id="use-risk-tracker" type="checkbox">
 
                                 <span>
                                     <b>02</b>
@@ -381,13 +326,8 @@
                                 </span>
                             </label>
 
-                            <label
-                                class="source-toggle source-toggle-market"
-                            >
-                                <input
-                                    id="use-market-lens"
-                                    type="checkbox"
-                                >
+                            <label class="source-toggle source-toggle-market">
+                                <input id="use-market-lens" type="checkbox">
 
                                 <span>
                                     <b>03</b>
@@ -414,10 +354,7 @@
                             >
                         </div>
 
-                        <div
-                            id="intel-notes-options"
-                            class="source-options hidden"
-                        >
+                        <div id="intel-notes-options" class="source-options hidden">
                             <div class="option-heading">
                                 INTEL NOTES PARAMETERS
                             </div>
@@ -434,19 +371,14 @@
                             >
                         </div>
 
-                        <div
-                            id="risk-tracker-options"
-                            class="source-options hidden"
-                        >
+                        <div id="risk-tracker-options" class="source-options hidden">
                             <div class="option-heading">
                                 RISK TRACKER PARAMETERS
                             </div>
 
                             <div class="option-grid">
                                 <div>
-                                    <label for="risk-case-id">
-                                        Case ID
-                                    </label>
+                                    <label for="risk-case-id">Case ID</label>
 
                                     <input
                                         id="risk-case-id"
@@ -457,37 +389,25 @@
                                 </div>
 
                                 <label class="check-option">
-                                    <input
-                                        id="risk-include-archived"
-                                        type="checkbox"
-                                    >
+                                    <input id="risk-include-archived" type="checkbox">
                                     Include archived cases
                                 </label>
 
                                 <label class="check-option">
-                                    <input
-                                        id="risk-include-related"
-                                        type="checkbox"
-                                        checked
-                                    >
+                                    <input id="risk-include-related" type="checkbox" checked>
                                     Include related records
                                 </label>
                             </div>
                         </div>
 
-                        <div
-                            id="market-lens-options"
-                            class="source-options hidden"
-                        >
+                        <div id="market-lens-options" class="source-options hidden">
                             <div class="option-heading">
                                 MARKET LENS PARAMETERS
                             </div>
 
                             <div class="option-grid">
                                 <div>
-                                    <label for="market-asset-id">
-                                        Asset ID
-                                    </label>
+                                    <label for="market-asset-id">Asset ID</label>
 
                                     <input
                                         id="market-asset-id"
@@ -498,37 +418,22 @@
                                 </div>
 
                                 <label class="check-option">
-                                    <input
-                                        id="market-include-inactive"
-                                        type="checkbox"
-                                    >
+                                    <input id="market-include-inactive" type="checkbox">
                                     Include inactive
                                 </label>
 
                                 <label class="check-option">
-                                    <input
-                                        id="market-include-prices"
-                                        type="checkbox"
-                                        checked
-                                    >
+                                    <input id="market-include-prices" type="checkbox" checked>
                                     Prices
                                 </label>
 
                                 <label class="check-option">
-                                    <input
-                                        id="market-include-analytics"
-                                        type="checkbox"
-                                        checked
-                                    >
+                                    <input id="market-include-analytics" type="checkbox" checked>
                                     Analytics
                                 </label>
 
                                 <label class="check-option">
-                                    <input
-                                        id="market-include-signals"
-                                        type="checkbox"
-                                        checked
-                                    >
+                                    <input id="market-include-signals" type="checkbox" checked>
                                     Signals
                                 </label>
                             </div>
@@ -536,18 +441,12 @@
                     </div>
 
                     <form id="message-form" class="message-form">
-                        <div
-                            class="prompt-marker"
-                            aria-hidden="true"
-                        >
+                        <div class="prompt-marker" aria-hidden="true">
                             <span>ARTEMIS</span>
                             <b>›</b>
                         </div>
 
-                        <label
-                            class="sr-only"
-                            for="message-input"
-                        >
+                        <label class="sr-only" for="message-input">
                             Message Artemis
                         </label>
 
@@ -574,30 +473,47 @@
                             </button>
                         </div>
                     </form>
+
                     <details class="source-options">
-    <summary>Save a note</summary>
+                        <summary>Save a note</summary>
 
-    <form id="save-note-form">
-        <label for="save-note-title">Title</label>
-        <input id="save-note-title" name="title" type="text" required>
+                        <form id="save-note-form">
+                            <label for="save-note-title">Title</label>
+                            <input id="save-note-title" name="title" type="text" required>
 
-        <label for="save-note-content">Note text</label>
-        <textarea id="save-note-content" name="content" rows="4" required></textarea>
+                            <label for="save-note-content">Note text</label>
+                            <textarea id="save-note-content" name="content" rows="4" required></textarea>
 
-        <button id="save-note-button" type="submit">Save note</button>
-        <p id="save-note-status" role="status"></p>
-    </form>
-</details>
+                            <button id="save-note-button" type="submit">Save note</button>
+                            <p id="save-note-status" role="status"></p>
+                        </form>
+                    </details>
+
+                    <details class="source-options">
+                        <summary>Web research</summary>
+
+                        <form id="web-research-form">
+                            <label for="web-research-topic">Research topic</label>
+                            <input
+                                id="web-research-topic"
+                                name="topic"
+                                type="text"
+                                maxlength="300"
+                                required
+                            >
+                            <button type="submit">Run research</button>
+                        </form>
+
+                        <p id="web-research-status" role="status"></p>
+                        <ul id="web-research-sources"></ul>
+                        <pre id="web-research-brief" style="white-space: pre-wrap"></pre>
+                    </details>
                 </div>
             </section>
         </main>
     </div>
 
-    <div
-        id="notification"
-        class="notification hidden"
-        role="alert"
-    ></div>
+    <div id="notification" class="notification hidden" role="alert"></div>
 
     <script src="/static/app.js"></script>
 </body>

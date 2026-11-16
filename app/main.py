@@ -24,6 +24,9 @@ from app.routes.information_sources import (
 from app.routes.preferences import (
     router as preferences_router,
 )
+from app.routes.research import (
+    router as research_router,
+)
 from app.schemas import (
     ApplicationResponse,
     HealthResponse,
@@ -92,6 +95,7 @@ app.include_router(approvals_router)
 app.include_router(preferences_router)
 app.include_router(conversations_router)
 app.include_router(information_sources_router)
+app.include_router(research_router)
 
 
 @app.get(

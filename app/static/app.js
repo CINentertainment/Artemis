@@ -462,6 +462,8 @@ function bindEvents() {
     elements.useMarketLens.addEventListener("change", () => {
         toggleOptions(elements.useMarketLens, elements.marketLensOptions);
     });
+
+    bindResearchForm();
 }
 
 async function initialize() {
@@ -574,6 +576,85 @@ async function draftNote(message, button) {
         button.disabled = false;
         button.textContent = "Draft note";
     }
+}
+
+function bindResearchForm() {
+    const form = document.getElementById("web-research-form");
+
+    if (!form) {
+        return;
+    }
+
+    const topicInput = document.getElementById("web-research-topic");
+    const runButton = form.querySelector('button[type="submit"]');
+    const status = document.getElementById("web-research-status");
+    const sourceList = document.getElementById("web-research-sources");
+    const briefOutput = document.getElementById("web-research-brief");
+
+    form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+
+        if (runButton.disabled) {
+            return;
+        }
+
+        const topic = topicInput.value.trim();
+        if (!topic) {
+            status.textContent = "Enter a research topic.";
+            topicInput.focus();
+            return;
+        }
+
+        runButton.disabled = true;
+        status.textContent = "Searching the web, saving evidence, and preparing the brief…";
+
+        try {
+            const result = await requestJson("/research", {
+                method: "POST",
+                body: JSON.stringify({ topic }),
+            });
+
+            if (!result || typeof result.brief !== "string" || !Array.isArray(result.sources)) {
+                throw new Error("Artemis returned an unexpected research response.");
+            }
+
+            const sourceItems = document.createDocumentFragment();
+
+            for (const source of result.sources) {
+                const item = document.createElement("li");
+                const title = source.title || source.url || "Untitled source";
+                let url;
+
+                try {
+                    url = new URL(source.url);
+                } catch {
+                    // Display malformed URLs as plain text.
+                }
+
+                if (url?.protocol === "https:") {
+                    const link = document.createElement("a");
+                    link.href = url.href;
+                    link.textContent = title;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    item.appendChild(link);
+                } else {
+                    item.textContent = title;
+                }
+
+                item.append(document.createTextNode(` · Record ${source.record_id}`));
+                sourceItems.appendChild(item);
+            }
+
+            sourceList.replaceChildren(sourceItems);
+            briefOutput.textContent = result.brief;
+            status.textContent = "Brief ready. Evidence saved to the tracker.";
+        } catch (error) {
+            status.textContent = `Research failed. ${error.message}`;
+        } finally {
+            runButton.disabled = false;
+        }
+    });
 }
 
 initialize();

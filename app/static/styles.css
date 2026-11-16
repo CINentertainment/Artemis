@@ -1787,3 +1787,14 @@ textarea:focus {
         animation-iteration-count: 1 !important;
     }
 }
+.composer-area {
+    min-height: 0;
+    max-height: 70vh;
+    max-height: 70dvh;
+    overflow-y: auto;
+}
+
+#web-research-brief {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
