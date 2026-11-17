@@ -586,6 +586,7 @@ function bindResearchForm() {
     }
 
     const topicInput = document.getElementById("web-research-topic");
+    const caseInput = document.getElementById("web-research-case-id");
     const runButton = form.querySelector('button[type="submit"]');
     const status = document.getElementById("web-research-status");
     const sourceList = document.getElementById("web-research-sources");
@@ -605,20 +606,40 @@ function bindResearchForm() {
             return;
         }
 
+        const payload = { topic };
+        const caseValue = caseInput.value.trim();
+
+        if (caseValue) {
+            const caseId = Number(caseValue);
+            if (!Number.isSafeInteger(caseId) || caseId < 1) {
+                status.textContent = "Enter a positive whole-number Risk Tracker case ID.";
+                caseInput.focus();
+                return;
+            }
+            payload.risk_tracker_case_id = caseId;
+        }
+
         runButton.disabled = true;
-        status.textContent = "Searching the web, saving evidence, and preparing the brief…";
+        sourceList.replaceChildren();
+        briefOutput.textContent = "";
+        status.textContent = "Searching the web, saving evidence, and preparing the brief...";
 
         try {
             const result = await requestJson("/research", {
                 method: "POST",
-                body: JSON.stringify({ topic }),
+                body: JSON.stringify(payload),
             });
 
-            if (!result || typeof result.brief !== "string" || !Array.isArray(result.sources)) {
+            if (
+                !result ||
+                typeof result.brief !== "string" ||
+                !Array.isArray(result.sources)
+            ) {
                 throw new Error("Artemis returned an unexpected research response.");
             }
 
             const sourceItems = document.createDocumentFragment();
+            let hasSaveError = false;
 
             for (const source of result.sources) {
                 const item = document.createElement("li");
@@ -642,13 +663,37 @@ function bindResearchForm() {
                     item.textContent = title;
                 }
 
-                item.append(document.createTextNode(` · Record ${source.record_id}`));
+                const details = [`Artemis record ${source.record_id}`];
+
+                if (source.intel_note_id != null) {
+                    details.push(`Intel Notes ID ${source.intel_note_id}`);
+                } else if (source.intel_note_error) {
+                    details.push(`Intel Notes import failed: ${source.intel_note_error}`);
+                    hasSaveError = true;
+                }
+
+                if (payload.risk_tracker_case_id !== undefined) {
+                    if (source.risk_tracker_evidence_id != null) {
+                        details.push(
+                            `Risk Tracker case ${payload.risk_tracker_case_id}, ` +
+                            `evidence ID ${source.risk_tracker_evidence_id}`
+                        );
+                    } else {
+                        const reason = source.risk_tracker_error || "No evidence ID returned.";
+                        details.push(`Risk Tracker attachment failed: ${reason}`);
+                        hasSaveError = true;
+                    }
+                }
+
+                item.append(document.createTextNode(` | ${details.join(" | ")}`));
                 sourceItems.appendChild(item);
             }
 
             sourceList.replaceChildren(sourceItems);
             briefOutput.textContent = result.brief;
-            status.textContent = "Brief ready. Evidence saved to the tracker.";
+            status.textContent = hasSaveError
+                ? "Brief ready. See the source list for save errors."
+                : "Brief ready.";
         } catch (error) {
             status.textContent = `Research failed. ${error.message}`;
         } finally {
@@ -656,5 +701,4 @@ function bindResearchForm() {
         }
     });
 }
-
 initialize();
