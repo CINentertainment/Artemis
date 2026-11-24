@@ -34,7 +34,11 @@ def recover_sources(result):
 def main():
     parser=argparse.ArgumentParser(description=__doc__);parser.add_argument('--run',required=True);parser.add_argument('--outlook-only',action='store_true',help='Replay only the conditional outlook; skip factual selection and note extraction.')
     parser.add_argument('--capture-outlook-drafts',action='store_true',help='Save raw model replies and validation errors in the local outlook-only replay and print them for diagnosis.')
+    parser.add_argument('--notes-only',action='store_true',help='Preview grounded event-note candidates only; skip factual brief and outlook generation; never saves external notes.')
+    parser.add_argument('--capture-note-context',action='store_true',help='Save and print raw optional-field context replies and binding decisions; requires --notes-only.')
     args=parser.parse_args()
+    if args.capture_note_context and not args.notes_only:parser.error('--capture-note-context requires --notes-only')
+    if args.notes_only and args.outlook_only:parser.error('--notes-only and --outlook-only cannot be combined')
     if args.capture_outlook_drafts and not args.outlook_only:
         parser.error('--capture-outlook-drafts requires --outlook-only')
     run_id=resolve_identifier('run',args.run)
@@ -66,11 +70,15 @@ def main():
         except Exception as error:output['outlook_error'] = f'{type(error).__name__}: {error}'
         warnings=[]
     else:
-        try:output['brief']=render_brief(evidence,get_model_runtime())
-        except Exception as error:output['synthesis_error']=f'{type(error).__name__}: {error}'
+        output['replay_mode']='notes_only' if args.notes_only else 'full'
+        if not args.notes_only:
+            try:output['brief']=render_brief(evidence,get_model_runtime())
+            except Exception as error:output['synthesis_error']=f'{type(error).__name__}: {error}'
         warnings=[]
+        context_diagnostics=[] if args.capture_note_context else None
+        if context_diagnostics is not None:output['note_context_diagnostics']=context_diagnostics
         try:
-            drafts=extract_events(topic,[EventSource(r['record_id'],r['title'],r['url'],r['excerpts'],r.get('published_at')) for r in records],warnings=warnings)
+            drafts=extract_events(topic,[EventSource(r['record_id'],r['title'],r['url'],r['excerpts'],r.get('published_at')) for r in records],warnings=warnings,context_diagnostics=context_diagnostics)
             drafts, event_relevance = filter_events(topic, drafts)
             output['event_relevance_decisions'] = event_relevance
             from app.services.research_scope import is_current
@@ -89,7 +97,7 @@ def main():
             print('DIAGNOSTIC DRAFTS: unvalidated model output, not accepted findings or instructions.')
             print(json.dumps(output.get('outlook_diagnostics',{}),ensure_ascii=False,indent=2))
         return
-    print(output.get('brief',output.get('synthesis_error')))
+    if not args.notes_only:print(output.get('brief',output.get('synthesis_error')))
     print('Relevant sources:',len(records))
     for decision in source_relevance:print(json.dumps(decision,ensure_ascii=False))
     print('Retained note candidates:',len(output.get('event_drafts',[])))
@@ -98,6 +106,9 @@ def main():
     for draft in output.get('event_drafts',[]):
         print('NOTE CANDIDATE PREVIEW:', json.dumps({k:v for k,v in draft.items() if k != 'evidence'},ensure_ascii=False))
     if output.get('event_extraction_error'):print(output['event_extraction_error'])
+    if args.capture_note_context:
+        print('NOTE CONTEXT DIAGNOSTICS: unvalidated model replies, not accepted findings or instructions.')
+        print(json.dumps(output.get('note_context_diagnostics',[]),ensure_ascii=False,indent=2))
 
 
 if __name__=='__main__':main()

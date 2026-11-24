@@ -25,21 +25,32 @@ def parse_text_date(text, year=None):
 
 def resolve_event_date(when, citations):
     if not when:return None
-    selected=[citations[i] for i in when.get('excerpt_ids',[]) if i in citations]
     requested=str(when.get('text',''))
-    # Every cited date-bearing excerpt must permit the same interpretation.
+    # No year is borrowed from publication metadata, URLs, titles or the current day.
     supported=[]
-    for item in selected:
-        pub=parse_date(item.get('published_at'))
-        desired=parse_text_date(requested,pub.year if pub else None)
-        if not desired:continue
-        for match in DATE_PATTERN.finditer(item.get('excerpt','')):
+    for i in when.get('excerpt_ids',[]):
+        item=citations.get(i)
+        if not item:continue
+        excerpt=item.get('event_date_context',item.get('excerpt',''))
+        for match in DATE_PATTERN.finditer(excerpt):
             literal=match.group()
-            explicit=bool(re.search(r'\b\d{4}\b',literal))
-            candidate=parse_text_date(literal,pub.year if pub else None)
-            if candidate==desired and (explicit or (pub and 0 <= (pub-candidate).days <= 30)):
-                supported.append(candidate)
+            if not re.search(r'\b\d{4}\b',literal):continue
+            prefix=excerpt[max(0,match.start()-40):match.start()]
+            if re.search(r'\b(?:up to|since|as of|through|between|from)\s*$',prefix,re.I):continue
+            candidate=parse_text_date(literal)
+            if not candidate:continue
+            desired=parse_text_date(requested)
+            if desired is None and normalize(requested) in normalize(literal):
+                desired=parse_text_date(requested,candidate.year)
+            if desired==candidate:supported.append(candidate)
     return supported[0].isoformat() if supported and len(set(supported))==1 else None
+
+
+def partial_point_date(when):
+    if not when:return False
+    text=str(when.get('text',''))
+    return bool(DATE_PATTERN.fullmatch(text)) and not re.search(r'\b\d{4}\b',text)
+
 
 def apply_event_policy(events, *, current, cutoff):
     retained=[];withheld=[];decisions=[]
@@ -47,6 +58,8 @@ def apply_event_policy(events, *, current, cutoff):
         event=copy.deepcopy(original)
         grounded=resolve_event_date(event.get('when'),event.get('evidence',{}))
         event['validated_event_date']=grounded
+        partial=grounded is None and partial_point_date(event.get('when'))
+        event['date_resolution']={'state':'explicit_date' if grounded else 'partial_date' if partial else 'not_established','literal':event.get('when'),'year_inferred':False}
         when=parse_date(grounded)
         status=str(event.get('status','reported')).casefold()
         detail={'title':event.get('title'),'original_status':status,'original_when':event.get('when'),
@@ -57,11 +70,14 @@ def apply_event_policy(events, *, current, cutoff):
             detail['decision']='retain';detail['reason']='Grounded date fits scope.' if current else 'Historical research scope.'
             retained.append(event)
         elif when is None and any((p:=parse_date(e.get('published_at'))) and cutoff-timedelta(days=30)<=p<=cutoff for e in event.get('evidence',{}).values()):
-            event['original_when']=event.get('when');event['when']=None;event['status']='reported'
-            event['title']='Undated reporting: '+str(event.get('title',''))[:230]
-            event['what']['text']='Source reporting; event date not established. '+event['what']['text']
-            detail['decision']='retain_as_undated_reporting'
-            detail['reason']='Recent publication supports retaining attributed reporting; publication date is not used as an event date.'
+            event['original_when']=event.get('when')
+            if not partial:event['when']=None
+            event['status']='reported'
+            label='Partially dated reporting: ' if partial else 'Undated reporting: '
+            event['title']=label+str(event.get('title',''))[:250-len(label)]
+            event['what']['text']=('Source reporting; full event date not established (year unresolved). ' if partial else 'Source reporting; event date not established. ')+event['what']['text']
+            detail['decision']='retain_as_partial_date_reporting' if partial else 'retain_as_undated_reporting'
+            detail['reason']='Recent publication supports retaining attributed reporting; the source-stated partial date is preserved without inferring its year.' if partial else 'Recent publication supports retaining attributed reporting; publication date is not used as an event date.'
             retained.append(event)
         else:
             detail['decision']='withhold'
