@@ -71,6 +71,10 @@ from app.services.task_agents import (
 
 from app.services.references import backfill_references
 
+from app.routes.intelligence_workspace import router as intelligence_workspace_router
+
+from app.services.research_workspace_bridge import research_workspace_worker
+
 settings = get_settings()
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -97,11 +101,13 @@ async def lifespan(
 
     research_scheduler.start()
     task_agent_worker.start()
+    research_workspace_worker.start()
 
     try:
         yield
     finally:
         try:
+            await asyncio.to_thread(research_workspace_worker.stop)
             await asyncio.to_thread(task_agent_worker.stop)
             await asyncio.to_thread(research_scheduler.stop)
         finally:
@@ -143,6 +149,7 @@ app.include_router(research_updates_router)
 app.include_router(local_computer_router)
 app.include_router(voice_router)
 app.include_router(tasks_router)
+app.include_router(intelligence_workspace_router)
 
 @app.get(
     "/",

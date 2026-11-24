@@ -614,6 +614,9 @@ def run_requisition(
             )
             database.commit()
 
+            # Durable workspace notification runs after research has been saved.
+            from app.services.research_workspace_bridge import enqueue_completed_run
+            enqueue_completed_run(record.id)
             return run_data(record, include_result=True)
     finally:
         research_lock.release()

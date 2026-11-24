@@ -21,10 +21,27 @@ def is_current(topic: str) -> bool:
     return bool(re.search(r'\b(current|latest|recent|today|ongoing|news|updates?)\b',topic,re.I))
 
 
+# A trailing list can request report sections rather than constrain every excerpt.
+# Remove it only when every word is a recognized generic report facet.
+REPORT_FACETS = set('affected impacted people peoples populations groups communities places locations areas infrastructure ideas rights systems services medical healthcare health delivery care effects impacts and or the their on in of to by with include including identify identifying describe describing relevant'.split())
+
+
+def subject_topic(topic: str) -> str:
+    value=clean_topic(topic)
+    value=re.sub(r'^\s*(?:(?:current|latest|recent|today|ongoing)\s+)?(?:reporting|reports?|information|updates?|research)\s+(?:on|about|regarding)\s+(?:how\s+)?','',value,flags=re.I)
+    facet=re.search(r'(?:[,;]\s*|\s+)(?:including|covering|identifying|with\s+(?:a\s+)?focus\s+on)\s+(.+)$',value,re.I)
+    if facet:
+        words=set(re.findall(r"[^\W_]+",facet.group(1).casefold()))
+        if words and words.issubset(REPORT_FACETS):
+            value=value[:facet.start()]
+    return value.strip(' \t\r\n.,;!?')
+
+
 def search_base(topic: str) -> str:
-    topic=clean_topic(topic)
+    topic=subject_topic(topic)
     topic=re.sub(r'\b(?:current|latest|recent|today|ongoing|updates?)\b',' ',topic,flags=re.I)
-    topic=re.sub(r'\b(?:the|between|information|about|regarding|one|developments?|affecting|how|is|are|has|been|its)\b',' ',topic,flags=re.I)
+    topic=re.sub(r'\b(?:the|between|information|about|regarding|one|developments?|affects?|affecting|affected|how|is|are|has|been|its|including|covering|identifying)\b',' ',topic,flags=re.I)
+    topic=re.sub(r'[–—,;!?()]',' ',topic)
     return ' '.join(topic.split())
 
 
@@ -38,6 +55,7 @@ def focused_base(topic):
     if healthcare_focus(base) and re.search(r'\bukrain',base,re.I):
         focused=re.sub(r'\b(?:russia|russian|ukraine|ukrainian|war)\b',' ',base,flags=re.I)
         focused=re.sub(r'[–—]',' ',focused)
+        focused=re.sub(r'\b(?:in|on|of|for|and|the|at|to|with)\b',' ',focused,flags=re.I)
         focused=' '.join(dict.fromkeys(focused.split()))
         return 'Ukraine '+focused
     return base

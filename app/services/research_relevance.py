@@ -3,7 +3,7 @@ import math
 import re
 from app.services.research_scope import clean_topic, search_base
 
-STOP = set('a an the and or for of in on to with from about at by as is are was were be been this that these those how what who why when where which research investigate information overview latest current recent today ongoing news update updates development developments affecting affected impact impacts effect effects source sources report reports reporting analysis assess assessment study studies finding findings preserve attribution uncertainty supported save notes intel leaving unknown event dates blank please one two three publicly traded company companies'.split())
+STOP = set('compare comparing comparison versus vs including include affects affect covering identifying a an the and or for of in on to with from about at by as is are was were be been this that these those how what who why when where which research investigate information overview latest current recent today ongoing news update updates development developments affecting affected impact impacts effect effects source sources report reports reporting analysis assess assessment study studies finding findings preserve attribution uncertainty supported save notes intel leaving unknown event dates blank please one two three publicly traded company companies'.split())
 ALIASES = {
     'ukraine': {'ukraine','ukrainian','ukrainians'},
     'russia': {'russia','russian','russians'},
