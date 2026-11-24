@@ -1,0 +1,496 @@
+/* Artemis interface refinement */
+:root {
+    --text-muted: #a49ab6;
+    --control-background: #191323;
+    --control-border: #514064;
+}
+
+html {
+    scroll-padding-top: 110px;
+}
+
+.app-shell {
+    height: 100vh;
+    height: 100dvh;
+}
+
+/* One main scrolling surface instead of a cramped command pane. */
+.main-panel {
+    display: block;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-gutter: stable;
+    scroll-padding-top: 110px;
+}
+
+.topbar {
+    position: sticky;
+    top: 0;
+    background: rgba(10, 8, 16, 0.96);
+}
+
+.composer-area {
+    max-height: none;
+    overflow: visible;
+    padding-bottom: 64px;
+}
+
+.command-console {
+    overflow: visible;
+    border-radius: 18px;
+}
+
+.message-panel {
+    min-height: 180px;
+    overflow: visible;
+    gap: 26px;
+    padding-top: 30px;
+    padding-bottom: 30px;
+}
+
+.message {
+    flex: 0 0 auto;
+    min-width: 0;
+    max-width: min(920px, 96%);
+}
+
+.message-content {
+    overflow: visible;
+    padding: 20px 22px;
+    font-size: 0.95rem;
+    line-height: 1.75;
+}
+
+.message > button {
+    align-self: flex-start;
+    margin-top: 10px;
+}
+
+.welcome-panel {
+    max-height: none;
+    overflow: visible;
+    margin: 24px auto;
+}
+
+/* Prevent archive entries from compressing into unreadable strips. */
+.conversation-list {
+    min-height: 0;
+    gap: 8px;
+    padding-bottom: 12px;
+}
+
+.conversation-item {
+    flex: 0 0 auto;
+    min-height: 62px;
+}
+
+.conversation-title {
+    font-size: 0.85rem;
+}
+
+.conversation-date {
+    font-size: 0.68rem;
+}
+
+/* Shared controls, including dynamically inserted feature panels. */
+.main-panel button {
+    min-height: 42px;
+    max-width: 100%;
+    padding: 10px 16px;
+    color: #eee6ff;
+    background: linear-gradient(180deg, #261c35, #191321);
+    border: 1px solid var(--control-border);
+    border-radius: 10px;
+    font: inherit;
+    font-size: 0.85rem;
+    font-weight: 650;
+    line-height: 1.35;
+    white-space: normal;
+    cursor: pointer;
+    transition:
+        background 150ms ease,
+        border-color 150ms ease,
+        box-shadow 150ms ease,
+        transform 150ms ease;
+}
+
+.main-panel button:not(:disabled):hover {
+    background: #352347;
+    border-color: #b58ae9;
+    box-shadow: 0 4px 18px rgba(140, 80, 230, 0.16);
+    transform: translateY(-1px);
+}
+
+.main-panel button:not(:disabled):active {
+    transform: translateY(0);
+    box-shadow: none;
+}
+
+.main-panel button:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.main-panel .primary-button,
+.main-panel #req-run,
+.main-panel #save-note-button,
+.main-panel #req-create-form button[type="submit"],
+.main-panel #web-research-form button[type="submit"] {
+    color: white;
+    background: linear-gradient(135deg, #9860ed, #6733c1);
+    border-color: #b489f0;
+}
+
+.main-panel .primary-button:not(:disabled):hover,
+.main-panel #req-run:not(:disabled):hover {
+    background: linear-gradient(135deg, #aa76fa, #7945d0);
+}
+
+.main-panel .icon-button {
+    width: 42px;
+    padding: 8px;
+}
+
+.command-console button {
+    margin: 5px 8px 5px 0;
+}
+
+.main-panel :is(button, input, textarea, select, summary):focus-visible,
+.sidebar button:focus-visible,
+.source-toggle input:focus-visible + span {
+    outline: 2px solid #d6b5ff;
+    outline-offset: 4px;
+}
+
+/* Forms */
+.main-panel :is(input, textarea, select) {
+    font: inherit;
+}
+
+.main-panel :is(input[type="text"], input[type="number"], select) {
+    min-height: 44px;
+    padding: 10px 12px;
+    font-size: 0.9rem;
+    color: var(--text);
+    background-color: #100d18;
+    border: 1px solid var(--control-border);
+    border-radius: 9px;
+}
+
+.main-panel select {
+    width: 100%;
+    max-width: 100%;
+    margin-bottom: 10px;
+    cursor: pointer;
+    color-scheme: dark;
+}
+
+.main-panel select option {
+    color: #f7f4ff;
+    background: #191321;
+}
+
+.command-console textarea {
+    min-height: 120px;
+    padding: 14px;
+    font-size: 0.95rem;
+    line-height: 1.6;
+}
+
+.command-console input[type="checkbox"] {
+    width: 17px;
+    height: 17px;
+    flex: 0 0 auto;
+    accent-color: #a36cf4;
+}
+
+.command-console label:not(.source-toggle) {
+    color: var(--text-soft);
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.command-console form > label,
+#research-requisitions label,
+#artemis-tasks label {
+    display: block;
+    margin: 16px 0 7px;
+}
+
+.option-grid {
+    grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+    gap: 14px;
+}
+
+.source-toggle > span {
+    min-height: 62px;
+    padding: 12px;
+}
+
+.source-toggle-copy strong {
+    font-size: 0.85rem;
+}
+
+.source-toggle-copy small {
+    font-size: 0.72rem;
+}
+
+.retrieval-controls {
+    padding: 18px;
+}
+
+/* Expandable feature panels */
+.command-console > details {
+    margin: 14px;
+    padding: 0;
+    overflow: visible;
+    background: linear-gradient(145deg, #15101f, #0e0b15);
+    border: 1px solid #3c2b52;
+    border-radius: 12px;
+}
+
+.command-console details > summary {
+    padding: 16px 18px;
+    color: #e8d9ff;
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.4;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background 150ms ease;
+}
+
+.command-console details > summary:hover {
+    background: rgba(158, 104, 255, 0.09);
+}
+
+.command-console details[open] > summary {
+    border-bottom: 1px solid var(--line);
+    border-radius: 12px 12px 0 0;
+}
+
+.command-console > details > :not(summary) {
+    margin-left: 18px;
+    margin-right: 18px;
+}
+
+.command-console > details > :last-child:not(summary) {
+    margin-bottom: 18px;
+}
+
+.command-console p,
+.command-console li {
+    font-size: 0.9rem;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+}
+
+.command-console h3 {
+    margin-top: 26px;
+    font-size: 1.05rem;
+}
+
+.command-console hr {
+    margin: 24px 0;
+    border: 0;
+    border-top: 1px solid var(--line);
+}
+
+.command-console fieldset {
+    min-width: 0;
+}
+
+.command-console a {
+    color: #c7a3ff;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.command-console a:hover {
+    color: #ead8ff;
+}
+
+/* Long briefs use the main scrollbar, not nested tiny reading windows.
+   Important overrides existing inline max-height/overflow declarations. */
+.command-console pre {
+    width: 100%;
+    min-width: 0;
+    max-height: none !important;
+    overflow: visible !important;
+    white-space: pre-wrap !important;
+    overflow-wrap: anywhere;
+    word-break: normal;
+    padding: 18px;
+    color: #ded5eb;
+    background: #0a0810;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    font-family: Consolas, "SFMono-Regular", monospace;
+    font-size: 0.85rem;
+    line-height: 1.8;
+    tab-size: 4;
+}
+
+.command-console pre:empty {
+    display: none;
+}
+
+.command-console [role="status"] {
+    padding: 10px 0;
+    color: #cbb8e6;
+}
+
+#tasks-list {
+    list-style: none;
+    padding: 0;
+}
+
+#tasks-list li {
+    padding: 14px;
+    margin-bottom: 12px;
+    background: #1b1426;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+#tasks-list button {
+    margin-left: 0 !important;
+    display: block;
+    margin-top: 10px;
+}
+
+/* Voice controls sit above the composer marker without overlap. */
+#message-form > div:has(#voice-auto-speak) {
+    margin: 14px !important;
+    padding: 16px !important;
+    gap: 10px !important;
+    background: #1a1225;
+    border-color: #62407e !important;
+    border-radius: 12px !important;
+}
+
+#message-form > div:has(#voice-auto-speak) > label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    margin: 5px 0;
+    min-height: 42px;
+}
+
+/* The marker was absolutely positioned at the top of the form,
+   where the inserted voice controls now live. */
+.prompt-marker {
+    position: static;
+    margin: 18px 20px 0;
+}
+
+#message-input {
+    min-height: 120px;
+    max-height: 55vh;
+    padding: 16px 20px;
+    font-size: 1rem;
+}
+
+.composer-footer {
+    padding: 10px 18px 18px;
+    flex-wrap: wrap;
+}
+
+#composer-status {
+    font-size: 0.62rem;
+    line-height: 1.5;
+}
+
+#send-button {
+    margin-left: auto;
+    min-width: 120px;
+}
+
+.main-panel,
+.conversation-list,
+textarea {
+    scrollbar-width: auto;
+    scrollbar-color: #70538c #100c18;
+}
+
+.main-panel::-webkit-scrollbar,
+.conversation-list::-webkit-scrollbar,
+textarea::-webkit-scrollbar {
+    width: 11px;
+    height: 11px;
+}
+
+.main-panel::-webkit-scrollbar-thumb,
+.conversation-list::-webkit-scrollbar-thumb,
+textarea::-webkit-scrollbar-thumb {
+    background: #70538c;
+    border: 3px solid #100c18;
+    border-radius: 10px;
+}
+
+@media (max-width: 900px) {
+    body {
+        overflow: auto;
+    }
+
+    .app-shell {
+        height: auto;
+        min-height: 100dvh;
+    }
+
+    .main-panel {
+        min-height: 0;
+        overflow: visible;
+    }
+
+    .sidebar {
+        overflow: visible;
+    }
+
+    .conversation-list {
+        flex: 0 0 auto;
+        max-height: 220px;
+        overflow-y: auto;
+    }
+
+    .topbar {
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+}
+
+@media (max-width: 640px) {
+    .message {
+        max-width: 100%;
+    }
+
+    .message-content {
+        padding: 16px;
+    }
+
+    .command-console > details {
+        margin: 10px;
+    }
+
+    .command-console > details > :not(summary) {
+        margin-left: 12px;
+        margin-right: 12px;
+    }
+
+    .command-console button {
+        min-height: 44px;
+    }
+
+    .source-toggles {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .main-panel button,
+    .conversation-item {
+        transition: none;
+    }
+}

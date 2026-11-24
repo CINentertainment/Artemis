@@ -34,7 +34,7 @@ class PrivateSecurityHeadersMiddleware(
         response.headers[
             "Permissions-Policy"
         ] = (
-            "camera=(), microphone=(), "
+            "camera=(), microphone=(self), "
             "geolocation=()"
         )
 

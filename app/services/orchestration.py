@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
@@ -55,7 +56,16 @@ DEFAULT_SYSTEM_PROMPT = (
     "practical responses. Protect private data, "
     "distinguish facts from analysis, and do not "
     "claim capabilities or information you do "
-    "not possess."
+    "not possess. "
+    "Artemis has a configured on-demand web research workflow, including "
+    "source collection and event-note saving when successful. Explicit research "
+    "requests are handled by the application before normal model generation. "
+    "Do not claim that Artemis universally lacks internet or current-information "
+    "access merely because this model turn has no web evidence. For current "
+    "facts, explain when research has not been performed rather than inventing "
+    "an update. Suggest a direct 'Research TOPIC' request when fresh collection "
+    "is needed. Do not claim a note was saved, a reminder was set, or continuous "
+    "monitoring started without a successful application result."
 )
 
 MAXIMUM_HISTORY_MESSAGES = 500
@@ -287,6 +297,41 @@ def run_conversation_turn(
         content=user_content,
     )
 
+    from app.services.local_commands import run_local_command
+
+    local_content = run_local_command(database, user_content)
+
+    if local_content is not None:
+        local_response = ModelResponse(
+            provider="local-computer",
+            model="local-command-router",
+            content=local_content,
+        )
+
+        assistant_message = add_message(
+            database,
+            conversation=conversation,
+            role="assistant",
+            content=local_content,
+            model_name=local_response.model,
+        )
+
+        record_audit_event(
+            database,
+            event_type="conversation",
+            action="local_command_handled",
+            outcome="success",
+            resource_type="conversation",
+            resource_id=conversation.id,
+            detail="Local command handled; see the response and action execution record for its outcome.",
+        )
+
+        return ConversationTurnResult(
+            user_message=user_message,
+            assistant_message=assistant_message,
+            model_response=local_response,
+        )
+
     retrieval_result: (
         RetrievalResult | None
     ) = None
@@ -314,11 +359,19 @@ def run_conversation_turn(
             use_intel_notes
             and intel_notes_connector is not None
         ):
-            retrieval_query = (
-                intel_notes_query
-                if intel_notes_query is not None
-                else user_content
-            )
+            retrieval_query = (intel_notes_query or "").strip()
+            if not retrieval_query:
+                message = user_content.strip()
+                brief_request = re.fullmatch(
+                    r"brief\s+me\s+on\s+(.+?)[?!.]*",
+                    message,
+                    flags=re.IGNORECASE,
+                )
+                retrieval_query = (
+                    brief_request.group(1).strip()
+                    if brief_request
+                    else message
+                )
 
             retrieval_result = (
                 retrieve_intel_notes(

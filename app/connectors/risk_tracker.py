@@ -31,13 +31,16 @@ class RiskTrackerConnector(LocalHttpConnector):
         if not password:
             raise ValueError("Risk Tracker password cannot be empty.")
         if expected_role not in {"Read Only", "Analyst", "Administrator"}:
-            raise ValueError("Risk Tracker role must be Read Only, Analyst, or Administrator.")
+            raise ValueError(
+                "Risk Tracker role must be Read Only, Analyst, or Administrator."
+            )
 
         capabilities = (
             "risk_tracker.health",
             "risk_tracker.authenticate",
             "risk_tracker.list_cases",
             "risk_tracker.get_case",
+            "risk_tracker.list_case_event_notes",
             "risk_tracker.list_activities",
             "risk_tracker.list_reviews",
             "risk_tracker.list_indicators",
@@ -45,7 +48,10 @@ class RiskTrackerConnector(LocalHttpConnector):
             "risk_tracker.list_mitigations",
         )
         if expected_role in {"Analyst", "Administrator"}:
-            capabilities += ("risk_tracker.attach_case_evidence",)
+            capabilities += (
+                "risk_tracker.attach_case_evidence",
+                "risk_tracker.link_case_event_note",
+            )
 
         super().__init__(
             connector_key="risk-tracker",
@@ -160,17 +166,25 @@ class RiskTrackerConnector(LocalHttpConnector):
                 "Risk Tracker is unavailable."
             ) from error
         except httpx.HTTPStatusError as error:
-            if error.response.status_code == 401:
+            status_code = error.response.status_code
+            if status_code == 401:
                 self._authenticated = False
                 raise RiskTrackerAuthenticationError(
                     "Risk Tracker authentication is no longer valid."
                 ) from error
-            if method == "PUT" and error.response.status_code == 409:
-                raise ConnectorResponseError(
-                    "This case already has different evidence for this Artemis record."
-                ) from error
+
+            if method == "PUT" and status_code == 409:
+                if "/evidence/" in path:
+                    raise ConnectorResponseError(
+                        "This case already has different evidence for this Artemis record."
+                    ) from error
+                if "/event-notes/" in path:
+                    raise ConnectorResponseError(
+                        "This Intel Notes entry is already linked with different metadata."
+                    ) from error
+
             raise ConnectorResponseError(
-                f"Risk Tracker returned HTTP status {error.response.status_code}."
+                f"Risk Tracker returned HTTP status {status_code}."
             ) from error
 
         return self._parse_json_response(response)
@@ -215,6 +229,46 @@ class RiskTrackerConnector(LocalHttpConnector):
                 "Risk Tracker returned an invalid case record."
             )
         return response
+
+    def list_case_event_notes(self, case_id: int) -> list[dict[str, Any]]:
+        return self._read_case_collection(case_id, "event-notes")
+
+    def link_case_event_note(
+        self,
+        *,
+        case_id: int,
+        intel_note_id: int,
+        title: str,
+        event_date: str | None,
+        event_status: str,
+        source_urls: list[str],
+    ) -> None:
+        self._validate_case_id(case_id)
+        if type(intel_note_id) is not int or intel_note_id < 1:
+            raise ValueError("Intel Notes ID must be a positive integer.")
+        if self._expected_role not in {"Analyst", "Administrator"}:
+            raise RiskTrackerAuthenticationError(
+                "Linking an event note requires an Analyst or Administrator connector."
+            )
+
+        response = self._request_authenticated_json(
+            "PUT",
+            f"/cases/{case_id}/event-notes/{intel_note_id}",
+            payload={
+                "title": title,
+                "event_date": event_date,
+                "event_status": event_status,
+                "source_urls": source_urls,
+            },
+        )
+        if (
+            not isinstance(response, dict)
+            or response.get("case_id") != case_id
+            or response.get("intel_note_id") != intel_note_id
+        ):
+            raise ConnectorResponseError(
+                "Risk Tracker returned an unexpected event-note link."
+            )
 
     def attach_case_evidence(
         self,

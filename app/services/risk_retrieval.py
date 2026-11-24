@@ -99,6 +99,15 @@ RETRIEVABLE_MITIGATION_FIELDS = (
 )
 
 
+RETRIEVABLE_EVENT_NOTE_FIELDS = (
+    "intel_note_id",
+    "title",
+    "event_date",
+    "event_status",
+    "source_urls",
+)
+
+
 @dataclass(frozen=True)
 class RiskRetrievalResult:
     source: str
@@ -222,7 +231,11 @@ def build_risk_tracker_context(
             )
         }
 
+        if bundle.get("event_notes_unavailable"):
+            sanitized_bundle["event_notes_unavailable"] = True
+
         collection_definitions = (
+            ("event_notes", RETRIEVABLE_EVENT_NOTE_FIELDS),
             (
                 "activities",
                 RETRIEVABLE_ACTIVITY_FIELDS,
@@ -302,7 +315,14 @@ def build_risk_tracker_context(
         "or certainty not supported by the records. "
         "Archived, incomplete, or historical records "
         "must not be represented as current without "
-        "qualification.\n"
+        "qualification. For a single-case brief, start with a short "
+        "case summary and then present the linked event notes in their "
+        "provided order. For each entry, include its event date, title, "
+        "Intel Note ID, and recorded source URLs. Label missing dates "
+        "'Date unknown'. Use event_date as the date of the event. "
+        "If event_notes is empty, say no linked event notes were found. "
+        "If event_notes_unavailable is true, say the linked event notes "
+        "could not be retrieved.\\n"
         "<risk_tracker_records>\n"
         f"{serialized_data}\n"
         "</risk_tracker_records>"
@@ -313,6 +333,7 @@ def count_related_records(
     case_bundles: list[dict[str, Any]],
 ) -> int:
     collection_names = (
+        "event_notes",
         "activities",
         "reviews",
         "indicators",
@@ -508,6 +529,20 @@ def retrieve_risk_tracker_case(
                 "unavailable."
             ),
         )
+
+    if include_related:
+        try:
+            event_notes = connector.list_case_event_notes(case_id)
+        except ConnectorError:
+            case_bundle["event_notes_unavailable"] = True
+        else:
+            case_bundle["event_notes"] = sorted(
+                event_notes,
+                key=lambda note: (
+                    not note.get("event_date"),
+                    note.get("event_date") or "",
+                ),
+            )
 
     case_bundles = [case_bundle]
 

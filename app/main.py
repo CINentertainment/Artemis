@@ -1,3 +1,4 @@
+import asyncio
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -5,6 +6,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
+from app.routes.voice import router as voice_router
 
 from app.config import get_settings
 from app.database import (
@@ -21,11 +23,17 @@ from app.routes.conversations import (
 from app.routes.information_sources import (
     router as information_sources_router,
 )
+from app.routes.local_computer import (
+    router as local_computer_router,
+)
 from app.routes.preferences import (
     router as preferences_router,
 )
 from app.routes.research import (
     router as research_router,
+)
+from app.routes.research_updates import (
+    router as research_updates_router,
 )
 from app.schemas import (
     ApplicationResponse,
@@ -41,9 +49,27 @@ from app.services.health import (
 from app.services.lifecycle import (
     record_application_lifecycle_event,
 )
+from app.services.local_computer import workspace_directory
 from app.services.registry import build_service_registry
+from app.services.research_scheduler import (
+    research_scheduler,
+    router as research_schedule_router,
+)
 from app.services.storage import check_storage_health
 
+
+# Register the task table before database initialization.
+from app.services.tasks import ArtemisTask
+from app.routes.tasks import router as tasks_router
+
+from app.routes.conversation_folders import router as folders_router
+
+from app.services.task_agents import (
+    task_agent_worker,
+    router as task_agents_router,
+)
+
+from app.services.references import backfill_references
 
 settings = get_settings()
 
@@ -55,20 +81,34 @@ STATIC_DIR = BASE_DIR / "static"
 async def lifespan(
     application: FastAPI,
 ) -> AsyncIterator[None]:
+    # Imported route modules register their models before table creation.
     initialize_database(engine)
+    backfill_references(engine)
+
+    workspace_directory().mkdir(
+        parents=True,
+        exist_ok=True,
+    )
 
     record_application_lifecycle_event(
         SessionLocal,
         "application_started",
     )
 
+    research_scheduler.start()
+    task_agent_worker.start()
+
     try:
         yield
     finally:
-        record_application_lifecycle_event(
-            SessionLocal,
-            "application_stopped",
-        )
+        try:
+            await asyncio.to_thread(task_agent_worker.stop)
+            await asyncio.to_thread(research_scheduler.stop)
+        finally:
+            record_application_lifecycle_event(
+                SessionLocal,
+                "application_stopped",
+            )
 
 
 app = FastAPI(
@@ -94,9 +134,15 @@ app.mount(
 app.include_router(approvals_router)
 app.include_router(preferences_router)
 app.include_router(conversations_router)
+app.include_router(task_agents_router)
+app.include_router(folders_router)
 app.include_router(information_sources_router)
 app.include_router(research_router)
-
+app.include_router(research_schedule_router)
+app.include_router(research_updates_router)
+app.include_router(local_computer_router)
+app.include_router(voice_router)
+app.include_router(tasks_router)
 
 @app.get(
     "/",

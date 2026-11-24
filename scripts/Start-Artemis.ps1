@@ -4,107 +4,49 @@ $ErrorActionPreference = "Stop"
 $artemisPath = Split-Path -Parent $PSScriptRoot
 $githubPath = Split-Path -Parent $artemisPath
 
-$intelNotesPath = Join-Path `
-    $githubPath `
-    "intel-notes-manager"
+$intelNotesPath = Join-Path $githubPath "intel-notes-manager"
+$marketLensPath = Join-Path $githubPath "market-lens"
+$riskTrackerPath = Join-Path $githubPath "protective-intelligence-risk-tracker"
 
-$marketLensPath = Join-Path `
-    $githubPath `
-    "market-lens"
+$artemisPython = Join-Path $artemisPath ".venv\Scripts\python.exe"
+$intelNotesPython = Join-Path $intelNotesPath ".venv\Scripts\python.exe"
+$marketLensPython = Join-Path $marketLensPath ".venv\Scripts\python.exe"
+$riskTrackerPython = Join-Path $riskTrackerPath ".venv\Scripts\python.exe"
 
-$riskTrackerPath = Join-Path `
-    $githubPath `
-    "protective-intelligence-risk-tracker"
+# Keep the existing Chroma installation.
+$chromaExecutable = "C:\Users\skate\.venvs\artemis\Scripts\chroma.exe"
 
-$artemisPython = (
-    "C:\Users\skate\.venvs" +
-    "\artemis\Scripts\python.exe"
-)
+$runtimePath = Join-Path $artemisPath ".runtime"
+$logPath = Join-Path $runtimePath "logs"
+$chromaDataPath = Join-Path $artemisPath "data\chroma"
 
-$chromaExecutable = (
-    "C:\Users\skate\.venvs" +
-    "\artemis\Scripts\chroma.exe"
-)
+$artemisPort = 8200
+$dashboardUrl = "http://127.0.0.1:$artemisPort/dashboard"
 
-$intelNotesPython = Join-Path `
-    $intelNotesPath `
-    ".venv\Scripts\python.exe"
-
-$marketLensPython = Join-Path `
-    $marketLensPath `
-    ".venv\Scripts\python.exe"
-
-$riskTrackerPython = Join-Path `
-    $riskTrackerPath `
-    ".venv\Scripts\python.exe"
-
-$runtimePath = Join-Path `
-    $artemisPath `
-    ".runtime"
-
-$logPath = Join-Path `
-    $runtimePath `
-    "logs"
-
-$chromaDataPath = Join-Path `
-    $artemisPath `
-    "data\chroma"
-
-$dashboardUrl = (
-    "http://127.0.0.1:8200/dashboard"
-)
-
-New-Item `
-    -ItemType Directory `
-    -Path $runtimePath `
-    -Force |
-    Out-Null
-
-New-Item `
-    -ItemType Directory `
-    -Path $logPath `
-    -Force |
-    Out-Null
-
-New-Item `
-    -ItemType Directory `
-    -Path $chromaDataPath `
-    -Force |
-    Out-Null
+foreach ($directory in @($runtimePath, $logPath, $chromaDataPath)) {
+    New-Item -ItemType Directory -Path $directory -Force |
+        Out-Null
+}
 
 
 function Test-LocalPort {
     param(
         [Parameter(Mandatory = $true)]
-        [int]$Port,
-
-        [int]$TimeoutMilliseconds = 500
+        [int]$Port
     )
 
-    $client = New-Object `
-        System.Net.Sockets.TcpClient
+    $client = New-Object System.Net.Sockets.TcpClient
 
     try {
         $connection = $client.BeginConnect(
-            "127.0.0.1",
-            $Port,
-            $null,
-            $null
+            "127.0.0.1", $Port, $null, $null
         )
 
-        $connected = (
-            $connection.AsyncWaitHandle.WaitOne(
-                $TimeoutMilliseconds,
-                $false
-            )
-        )
-
-        if (-not $connected) {
+        if (-not $connection.AsyncWaitHandle.WaitOne(500, $false)) {
             return $false
         }
 
         $client.EndConnect($connection)
-
         return $true
     }
     catch {
@@ -116,6 +58,59 @@ function Test-LocalPort {
 }
 
 
+function Get-LocalApplication {
+    param(
+        [Parameter(Mandatory = $true)]
+        [int]$Port
+    )
+
+    try {
+        $response = Invoke-RestMethod `
+            -Uri "http://127.0.0.1:$Port/" `
+            -TimeoutSec 5
+
+        $property = $response.PSObject.Properties["application"]
+
+        if ($null -ne $property) {
+            return [string]$property.Value
+        }
+    }
+    catch {
+        # The service may not expose an application identity.
+    }
+
+    return ""
+}
+
+
+function ConvertTo-NativeArgument {
+    param(
+        [AllowEmptyString()]
+        [string]$Value
+    )
+
+    # Simple arguments need no Windows quoting.
+    if ($Value -match '^[A-Za-z0-9_./:=+-]+$') {
+        return $Value
+    }
+
+    # Windows native-process quoting, including embedded quotes
+    # and trailing backslashes.
+    $escaped = [regex]::Replace(
+        $Value,
+        '(\\*)"',
+        '$1$1\"'
+    )
+    $escaped = [regex]::Replace(
+        $escaped,
+        '(\\+)$',
+        '$1$1'
+    )
+
+    return '"' + $escaped + '"'
+}
+
+
 function Wait-LocalPort {
     param(
         [Parameter(Mandatory = $true)]
@@ -124,23 +119,16 @@ function Wait-LocalPort {
         [Parameter(Mandatory = $true)]
         [int]$Port,
 
-        [int]$TimeoutSeconds = 45
+        [int]$TimeoutSeconds = 60
     )
 
-    $deadline = (
-        Get-Date
-    ).AddSeconds($TimeoutSeconds)
+    $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
 
     while ((Get-Date) -lt $deadline) {
         if (Test-LocalPort -Port $Port) {
-            Write-Host (
-                (
-                    "[READY] {0} on port {1}" -f
-                    $Name,
-                    $Port
-                )
-            ) -ForegroundColor Green
-
+            Write-Host `
+                "[READY] $Name on port $Port" `
+                -ForegroundColor Green
             return
         }
 
@@ -148,10 +136,8 @@ function Wait-LocalPort {
     }
 
     throw (
-        (
-            "{0} did not start on port {1}. " +
-            "Review the logs in {2}."
-        ) -f $Name, $Port, $logPath
+        "$Name did not start on port $Port. " +
+        "Review the logs in $logPath."
     )
 }
 
@@ -175,66 +161,39 @@ function Start-ManagedProcess {
     )
 
     if (Test-LocalPort -Port $Port) {
-        Write-Host (
-            (
-                "[RUNNING] {0} is already available " +
-                "on port {1}."
-            ) -f $Name, $Port
-        ) -ForegroundColor Cyan
-
+        Write-Host `
+            "[RUNNING] $Name on port $Port" `
+            -ForegroundColor Cyan
         return
     }
 
-    if (-not (Test-Path $Executable)) {
-        throw (
-            (
-                "The executable for {0} was not " +
-                "found: {1}"
-            ) -f $Name, $Executable
-        )
+    if (-not (Test-Path -LiteralPath $Executable)) {
+        throw "Executable for $Name was not found: $Executable"
     }
 
-    if (-not (Test-Path $WorkingDirectory)) {
-        throw (
-            (
-                "The working directory for {0} was " +
-                "not found: {1}"
-            ) -f $Name, $WorkingDirectory
-        )
+    if (-not (Test-Path -LiteralPath $WorkingDirectory)) {
+        throw "Working directory for $Name was not found: $WorkingDirectory"
     }
 
     $safeName = (
-        $Name.ToLowerInvariant() -replace
-        "[^a-z0-9]+",
-        "-"
+        $Name.ToLowerInvariant() -replace "[^a-z0-9]+", "-"
     ).Trim("-")
 
-    $pidFile = Join-Path `
-        $runtimePath `
-        "$safeName.pid"
+    $pidFile = Join-Path $runtimePath "$safeName.pid"
+    $standardOutput = Join-Path $logPath "$safeName.out.log"
+    $standardError = Join-Path $logPath "$safeName.err.log"
 
-    $standardOutput = Join-Path `
-        $logPath `
-        "$safeName.out.log"
+    $argumentLine = (
+        $Arguments | ForEach-Object {
+            ConvertTo-NativeArgument -Value $_
+        }
+    ) -join " "
 
-    $standardError = Join-Path `
-        $logPath `
-        "$safeName.err.log"
-
-    Remove-Item `
-        $pidFile `
-        -Force `
-        -ErrorAction SilentlyContinue
-
-    Write-Host (
-        (
-            "[STARTING] {0}..." -f $Name
-        )
-    ) -ForegroundColor Yellow
+    Write-Host "[STARTING] $Name..." -ForegroundColor Yellow
 
     $process = Start-Process `
         -FilePath $Executable `
-        -ArgumentList $Arguments `
+        -ArgumentList $argumentLine `
         -WorkingDirectory $WorkingDirectory `
         -WindowStyle Hidden `
         -RedirectStandardOutput $standardOutput `
@@ -242,64 +201,135 @@ function Start-ManagedProcess {
         -PassThru
 
     Set-Content `
-        -Path $pidFile `
+        -LiteralPath $pidFile `
         -Value $process.Id `
         -Encoding ASCII
 
-    Wait-LocalPort `
-        -Name $Name `
-        -Port $Port
+    Wait-LocalPort -Name $Name -Port $Port
 }
 
 
 function Find-OllamaExecutable {
-    $ollamaCommand = Get-Command `
-        "ollama.exe" `
-        -ErrorAction SilentlyContinue
+    $command = Get-Command "ollama.exe" -ErrorAction SilentlyContinue
 
-    if ($null -ne $ollamaCommand) {
-        return $ollamaCommand.Source
+    if ($null -ne $command) {
+        return $command.Source
     }
 
-    $fallbackPath = (
-        "C:\Users\skate\AppData\Local" +
-        "\Programs\Ollama\ollama.exe"
-    )
+    $fallback = Join-Path `
+        $env:LOCALAPPDATA `
+        "Programs\Ollama\ollama.exe"
 
-    if (Test-Path $fallbackPath) {
-        return $fallbackPath
+    if (Test-Path -LiteralPath $fallback) {
+        return $fallback
     }
 
-    throw (
-        "Ollama was not found. Install or open " +
-        "Ollama before starting Artemis."
+    throw "Ollama was not found. Install or open Ollama first."
+}
+
+
+function Set-RiskWriteCredentials {
+    $username = [Environment]::GetEnvironmentVariable(
+        "ARTEMIS_RISK_WRITE_USERNAME",
+        "Process"
     )
+    $password = [Environment]::GetEnvironmentVariable(
+        "ARTEMIS_RISK_WRITE_PASSWORD",
+        "Process"
+    )
+    $role = [Environment]::GetEnvironmentVariable(
+        "ARTEMIS_RISK_WRITE_ROLE",
+        "Process"
+    )
+
+    if (
+        [string]::IsNullOrWhiteSpace($username) -or
+        [string]::IsNullOrEmpty($password)
+    ) {
+        $credential = Get-Credential `
+            -UserName "cin" `
+            -Message "Risk Tracker credentials for Artemis research"
+
+        if ($null -eq $credential) {
+            throw "Startup cancelled: Risk Tracker credentials were not supplied."
+        }
+
+        $env:ARTEMIS_RISK_WRITE_USERNAME = $credential.UserName
+        $env:ARTEMIS_RISK_WRITE_PASSWORD = (
+            $credential.GetNetworkCredential().Password
+        )
+        $env:ARTEMIS_RISK_WRITE_ROLE = "Administrator"
+    }
+    elseif ([string]::IsNullOrWhiteSpace($role)) {
+        throw (
+            "ARTEMIS_RISK_WRITE_ROLE is missing. Set it to the " +
+            "actual role of the configured Risk Tracker account."
+        )
+    }
 }
 
 
 try {
     Write-Host ""
-
-    Write-Host `
-        "Starting Artemis..." `
-        -ForegroundColor Magenta
-
+    Write-Host "Starting Artemis..." -ForegroundColor Magenta
     Write-Host ""
 
-    if (Test-LocalPort -Port 11434) {
-        Write-Host (
-            "[RUNNING] Ollama is already available " +
-            "on port 11434."
-        ) -ForegroundColor Cyan
+    # Prevent a second Artemis scheduler from starting alongside
+    # the manually launched testing server.
+    if (Test-LocalPort -Port 7000) {
+        $application = Get-LocalApplication -Port 7000
+
+        if ($application -eq "Artemis") {
+            throw (
+                "Artemis is already running on testing port 7000. " +
+                "Press Ctrl+C in that server's PowerShell window, " +
+                "wait for shutdown, then use this launcher again."
+            )
+        }
+
+        if ([string]::IsNullOrWhiteSpace($application)) {
+            throw (
+                "Port 7000 is occupied but its application could not " +
+                "be identified. Check that it is not another Artemis " +
+                "server before starting the desktop launcher."
+            )
+        }
+    }
+
+    if (-not (Test-Path -LiteralPath $artemisPython)) {
+        throw "Artemis Python was not found: $artemisPython"
+    }
+
+    # Verify the tested environment can import the current application.
+    Push-Location $artemisPath
+    try {
+        & $artemisPython -c "from app.main import app"
+        if ($LASTEXITCODE -ne 0) {
+            throw "Artemis could not load. Review the Python error above."
+        }
+    }
+    finally {
+        Pop-Location
+    }
+
+    if (Test-LocalPort -Port $artemisPort) {
+        if ((Get-LocalApplication -Port $artemisPort) -ne "Artemis") {
+            throw "Port $artemisPort is occupied by an unverified application."
+        }
     }
     else {
-        $ollamaExecutable = (
-            Find-OllamaExecutable
-        )
+        Set-RiskWriteCredentials
+    }
 
+    if (Test-LocalPort -Port 11434) {
+        Write-Host `
+            "[RUNNING] Ollama on port 11434" `
+            -ForegroundColor Cyan
+    }
+    else {
         Start-ManagedProcess `
             -Name "Ollama" `
-            -Executable $ollamaExecutable `
+            -Executable (Find-OllamaExecutable) `
             -Arguments @("serve") `
             -WorkingDirectory $artemisPath `
             -Port 11434
@@ -310,12 +340,9 @@ try {
         -Executable $chromaExecutable `
         -Arguments @(
             "run",
-            "--path",
-            $chromaDataPath,
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8100"
+            "--path", $chromaDataPath,
+            "--host", "127.0.0.1",
+            "--port", "8100"
         ) `
         -WorkingDirectory $artemisPath `
         -Port 8100
@@ -324,13 +351,9 @@ try {
         -Name "Intel Notes" `
         -Executable $intelNotesPython `
         -Arguments @(
-            "-m",
-            "uvicorn",
-            "app.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8001"
+            "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1",
+            "--port", "8001"
         ) `
         -WorkingDirectory $intelNotesPath `
         -Port 8001
@@ -339,13 +362,9 @@ try {
         -Name "Risk Tracker" `
         -Executable $riskTrackerPython `
         -Arguments @(
-            "-m",
-            "uvicorn",
-            "app.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8000"
+            "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1",
+            "--port", "8000"
         ) `
         -WorkingDirectory $riskTrackerPath `
         -Port 8000
@@ -354,58 +373,70 @@ try {
         -Name "Market Lens" `
         -Executable $marketLensPython `
         -Arguments @(
-            "-m",
-            "uvicorn",
-            "app.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8003"
+            "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1",
+            "--port", "8003"
         ) `
         -WorkingDirectory $marketLensPath `
         -Port 8003
+
+    # Direct SearxNG startup without nested Bash
+    $wslExecutable = Join-Path $env:WINDIR "System32\wsl.exe"
+    $searxLinuxPath = "/home/skate/artemis-searxng"
+
+    Start-ManagedProcess `
+        -Name "SearxNG" `
+        -Executable $wslExecutable `
+        -Arguments @(
+            "--distribution", "Ubuntu",
+            "--cd", $searxLinuxPath,
+            "--exec", "/usr/bin/env",
+            "SEARXNG_SETTINGS_PATH=$searxLinuxPath/artemis-settings.yml",
+            "$searxLinuxPath/.venv/bin/python",
+            "-m", "searx.webapp"
+        ) `
+        -WorkingDirectory $artemisPath `
+        -Port 8888
+
+    # Check that the search service supports the JSON interface.
+    $searchCheck = Invoke-RestMethod `
+        -Uri "http://127.0.0.1:8888/search?q=Artemis&format=json" `
+        -TimeoutSec 45
+
+    if ($null -eq $searchCheck.PSObject.Properties["results"]) {
+        throw "SearxNG did not return the expected JSON search response."
+    }
 
     Start-ManagedProcess `
         -Name "Artemis" `
         -Executable $artemisPython `
         -Arguments @(
-            "-m",
-            "uvicorn",
-            "app.main:app",
-            "--host",
-            "127.0.0.1",
-            "--port",
-            "8200"
+            "-m", "uvicorn", "app.main:app",
+            "--host", "127.0.0.1",
+            "--port", "$artemisPort"
         ) `
         -WorkingDirectory $artemisPath `
-        -Port 8200
+        -Port $artemisPort
+
+    if ((Get-LocalApplication -Port $artemisPort) -ne "Artemis") {
+        throw "The Artemis application identity check failed."
+    }
 
     Write-Host ""
-
-    Write-Host (
-        "Artemis is ready. Opening the dashboard..."
-    ) -ForegroundColor Green
+    Write-Host `
+        "Artemis is ready. Opening the dashboard..." `
+        -ForegroundColor Green
 
     Start-Process $dashboardUrl
 }
 catch {
     Write-Host ""
-
-    Write-Host `
-        "Artemis could not start." `
-        -ForegroundColor Red
-
-    Write-Host `
-        $_.Exception.Message `
-        -ForegroundColor Red
-
+    Write-Host "Artemis could not start." -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
     Write-Host ""
-
-    Write-Host (
-        "Press Enter to close this window."
-    )
-
+    Write-Host "Services already started remain running."
+    Write-Host "Logs: $logPath"
+    Write-Host "Press Enter to close this window."
     Read-Host | Out-Null
-
     exit 1
 }

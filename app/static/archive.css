@@ -1,0 +1,148 @@
+.archive-toolbar {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 8px;
+    padding: 0 3px 12px;
+}
+
+.sidebar .archive-toolbar button,
+.sidebar .archive-folder button:not(.conversation-item) {
+    min-height: 34px;
+    padding: 7px 10px;
+    color: #e8dcfa;
+    background: #21172e;
+    border: 1px solid #52366f;
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.75rem;
+    cursor: pointer;
+}
+
+.sidebar .archive-toolbar button:hover,
+.sidebar .archive-folder button:not(.conversation-item):hover {
+    background: #352046;
+    border-color: #aa7cda;
+}
+
+.sidebar .archive-folder .archive-danger {
+    color: #ffb3c3;
+    border-color: #704052;
+    background: #2a1720;
+}
+
+.sidebar .archive-folder .archive-danger:hover {
+    background: #44202d;
+}
+
+.archive-toolbar button:disabled,
+.archive-folder button:disabled,
+.archive-folder select:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.archive-folder {
+    flex: 0 0 auto;
+    min-width: 0;
+    margin-bottom: 10px;
+    padding: 5px;
+    background: rgba(20, 14, 29, 0.7);
+    border: 1px solid #352440;
+    border-radius: 11px;
+}
+
+.archive-folder > summary {
+    padding: 10px 7px;
+    color: #dfc6fa;
+    font-size: 0.85rem;
+    font-weight: 650;
+    cursor: pointer;
+    overflow-wrap: anywhere;
+}
+
+.archive-folder > summary > span:first-child {
+    margin-left: 4px;
+}
+
+.archive-folder-count {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 2px 7px;
+    color: #bda6d0;
+    background: #2b1c38;
+    border-radius: 6px;
+    font-size: 0.7rem;
+}
+
+.archive-folder-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 7px;
+    padding: 5px 5px 12px;
+    border-bottom: 1px solid #352440;
+    margin-bottom: 8px;
+}
+
+.archive-entry {
+    min-width: 0;
+    margin-bottom: 8px;
+    border-bottom: 1px solid rgba(130, 90, 160, 0.15);
+    padding-bottom: 8px;
+}
+
+.archive-entry .conversation-item {
+    min-height: 58px;
+    padding: 10px;
+}
+
+.archive-entry .conversation-title {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.4;
+}
+
+.archive-chat-options {
+    padding: 0 8px 5px;
+}
+
+.archive-chat-options > summary {
+    padding: 7px 0;
+    color: #a994bb;
+    font-size: 0.7rem;
+    cursor: pointer;
+}
+
+.archive-chat-options label {
+    display: block;
+    margin: 8px 0;
+    color: #c4b0d4;
+    font-size: 0.72rem;
+}
+
+.archive-chat-options select {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    min-height: 38px;
+    margin-top: 7px;
+    padding: 7px;
+    color: #f3eafa;
+    background: #120d1a;
+    border: 1px solid #52366f;
+    border-radius: 7px;
+    font: inherit;
+    font-size: 0.78rem;
+    color-scheme: dark;
+}
+
+.archive-empty {
+    margin: 8px;
+    color: #ac99ba;
+    font-size: 0.75rem;
+    line-height: 1.6;
+}
+
+.sidebar :is(button, select, summary):focus-visible {
+    outline: 2px solid #d6b5ff;
+    outline-offset: 3px;
+}

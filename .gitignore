@@ -19,3 +19,12 @@ dist/
 build/
 *.spec
 .runtime/
+
+# Local backups and update packages
+*.bak
+/artemis-*-update/
+/Artemis-*.zip
+/.runtime/
+/artemis-voice-preview.wav
+/en_US-lessac-medium.onnx
+/en_US-lessac-medium.onnx.json

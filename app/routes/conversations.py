@@ -409,6 +409,14 @@ def remove_conversation(
     conversation = get_conversation_or_404(database, conversation_id)
     resource_id = conversation.id
 
+    from sqlalchemy import delete
+    from app.routes.conversation_folders import ConversationFolderMembership
+
+    database.execute(
+        delete(ConversationFolderMembership).where(
+            ConversationFolderMembership.conversation_id == conversation.id
+        )
+    )
     delete_conversation(database, conversation)
 
     record_audit_event(
@@ -445,13 +453,19 @@ def generate_conversation_response(
 ) -> ConversationTurnResponse:
     conversation = get_conversation_or_404(database, conversation_id)
 
-    if payload.use_risk_tracker and risk_tracker_connector is None:
+    from app.services.research_chat import is_research_chat_request
+
+    from app.services.note_commands import is_note_chat_request
+
+    direct_command = is_research_chat_request(payload.content) or is_note_chat_request(payload.content)
+
+    if payload.use_risk_tracker and risk_tracker_connector is None and not direct_command:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Risk Tracker credentials are not configured.",
         )
 
-    if payload.use_market_lens and market_lens_connector is None:
+    if payload.use_market_lens and market_lens_connector is None and not direct_command:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Market Lens API key is not configured.",
