@@ -1,0 +1,2 @@
+Made with Natural Earth. Public-domain reference boundaries (110m) and populated places (10m), downloaded 2026-11-25 from nvkelso/natural-earth-vector geojson files. https://www.naturalearthdata.com/about/terms-of-use/
+Reference points do not locate an exact incident site. Coverage and naming are limited by the source dataset.

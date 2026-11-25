@@ -30,6 +30,11 @@ def anchors(topic):
     return found
 
 def check_excerpt(topic, title, excerpt):
+    from app.services.world_watch_profiles import relevant
+    broad=relevant(clean_topic(topic),excerpt)
+    if broad is not None:
+        if BIO.search(excerpt):return False,'Author biography is not research evidence.'
+        return (True,'Matched explicit broad-watch domain wording in excerpt; relevance is not truth validation.') if broad else (False,'Broad-watch domain wording is absent from excerpt.')
     required=anchors(topic)
     if not required:return False,'No specific topic anchors; relevance is unresolved.'
     if BIO.search(excerpt):return False,'Author biography is not research evidence.'
@@ -79,10 +84,13 @@ def filter_events(topic,events):
         relevant={key:value for key,value in evidence.items() if check_excerpt(topic,value.get('title',''),value.get('excerpt',''))[0]}
         cited={i for field in ('who','what','when','where','why','how') if event.get(field) for i in event[field].get('excerpt_ids',[])}
         narrative=' '.join(str(event.get(name,{}).get('text','')) for name in ('what','who','where') if isinstance(event.get(name),dict))+' '+str(event.get('title',''))
+        from app.services.world_watch_profiles import relevant as broad_relevance
+        broad=broad_relevance(clean_topic(topic),narrative)
         subject=anchors(topic);narrative_tokens=tokens(narrative)
         body_subject=subject-{'ukraine','russia'}
         accepted=bool(cited) and cited.issubset(relevant) and bool(narrative_tokens.intersection(body_subject or subject))
-        if 'healthcare' in subject:accepted=accepted and 'healthcare' in narrative_tokens
+        if broad is not None:accepted=bool(cited) and cited.issubset(relevant) and broad
+        elif 'healthcare' in subject:accepted=accepted and 'healthcare' in narrative_tokens
         decisions.append({'title':event.get('title'),'accepted':bool(accepted),'reason':'Cited excerpts and event narrative match topic.' if accepted else 'Event narrative or cited evidence did not pass topic relevance.'})
         if accepted:kept.append(event)
     return kept,decisions

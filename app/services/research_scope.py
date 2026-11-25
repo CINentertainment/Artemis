@@ -62,6 +62,11 @@ def focused_base(topic):
 
 
 def initial_queries(topic: str, now: datetime) -> list[tuple[str,str|None,str|None]]:
+    from app.services.world_watch_profiles import profile
+    selected=profile(clean_topic(topic))
+    if selected:
+        query=f"{selected['query']} {now:%B %Y}"
+        return [(query,None,'month'), *[(f'site:{domain} {query}',None,'month') for domain in selected['domains']], (query,'news','month')]
     base=focused_base(topic)
     current=is_current(topic)
     dated=f'{base} {now:%B %Y}' if current else base

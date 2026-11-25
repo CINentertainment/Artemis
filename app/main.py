@@ -75,6 +75,10 @@ from app.routes.intelligence_workspace import router as intelligence_workspace_r
 
 from app.services.research_workspace_bridge import research_workspace_worker
 
+from app.services.market_automation import worker as market_worker, router as market_router
+
+from app.services.risk_map import worker as atlas_worker, router as atlas_router
+
 settings = get_settings()
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -102,11 +106,15 @@ async def lifespan(
     research_scheduler.start()
     task_agent_worker.start()
     research_workspace_worker.start()
+    market_worker.start()
+    atlas_worker.start()
 
     try:
         yield
     finally:
         try:
+            await asyncio.to_thread(atlas_worker.stop)
+            await asyncio.to_thread(market_worker.stop)
             await asyncio.to_thread(research_workspace_worker.stop)
             await asyncio.to_thread(task_agent_worker.stop)
             await asyncio.to_thread(research_scheduler.stop)
@@ -150,6 +158,8 @@ app.include_router(local_computer_router)
 app.include_router(voice_router)
 app.include_router(tasks_router)
 app.include_router(intelligence_workspace_router)
+app.include_router(market_router)
+app.include_router(atlas_router)
 
 @app.get(
     "/",

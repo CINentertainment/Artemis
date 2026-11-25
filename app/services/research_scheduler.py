@@ -90,6 +90,8 @@ class ResearchSchedule(Base):
 class ScheduleRequest(BaseModel):
     enabled: bool = False
 
+    initial_delay_minutes: int | None = Field(default=None, ge=0, le=10080)
+
     interval_minutes: int = Field(
         default=1440,
         ge=5,
@@ -170,7 +172,7 @@ def save_schedule(
     # Enabling or changing a schedule starts a fresh interval.
     # Disabling it prevents future starts; an active run can finish.
     record.next_run_at = (
-        utc_now() + timedelta(minutes=request.interval_minutes)
+        utc_now() + timedelta(minutes=request.initial_delay_minutes if request.initial_delay_minutes is not None else request.interval_minutes)
         if request.enabled
         else None
     )
