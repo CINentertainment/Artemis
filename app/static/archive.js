@@ -11,6 +11,7 @@
     let ready = false;
     let busy = false;
     const expanded = new Map();
+    const selected = new Set();
 
     const toolbar = document.createElement("div");
     toolbar.className = "archive-toolbar";
@@ -25,6 +26,34 @@
 
     toolbar.append(newFolder, refresh);
     list.before(toolbar);
+    const bulk=document.createElement('div');bulk.className='archive-toolbar archive-bulk';
+    const selectAll=document.createElement('button');selectAll.type='button';selectAll.textContent='Select all chats';
+    const clear=document.createElement('button');clear.type='button';clear.textContent='Clear selection';
+    const deleteSelected=document.createElement('button');deleteSelected.type='button';deleteSelected.className='archive-danger';
+    const bulkStatus=document.createElement('p');bulkStatus.className='archive-empty';bulkStatus.setAttribute('role','status');bulkStatus.setAttribute('aria-live','polite');
+    bulk.append(selectAll,clear,deleteSelected);toolbar.after(bulk,bulkStatus);
+    function updateSelection(){deleteSelected.textContent=`Delete selected (${selected.size})`;deleteSelected.disabled=busy||state.sending||!selected.size;selectAll.disabled=busy||state.sending;clear.disabled=busy||state.sending;}
+    selectAll.onclick=()=>{if(busy||state.sending)return;for(const c of state.conversations)selected.add(c.id);renderArchive();};
+    clear.onclick=()=>{if(busy||state.sending)return;selected.clear();renderArchive();};
+    deleteSelected.onclick=()=>{
+        if(busy||state.sending||!selected.size)return;
+        const ids=[...selected];
+        if(!window.confirm(`Delete ${ids.length} selected chats and their messages? This cannot be undone from Artemis. Separately saved notes, research, tasks and backups remain.`))return;
+        void action(async()=>{
+            let removed=0;const failed=[];updateSelection();
+            for(const id of ids){
+                try{
+                    if(state.currentConversationId===id)stopCurrentVoice();
+                    await requestJson(`/conversations/${id}`,{method:'DELETE'});
+                    if(state.currentConversationId===id)clearCurrentConversation();
+                    selected.delete(id);state.conversations=state.conversations.filter(c=>c.id!==id);removed++;
+                }catch(error){failed.push(id);}
+                bulkStatus.textContent=`Deleted ${removed} of ${ids.length} selected chats…`;
+            }
+            bulkStatus.textContent=`Deleted ${removed} chats.`+(failed.length?` ${failed.length} could not be deleted and remain selected; retry them.`:'');
+        });
+    };
+    updateSelection();
 
     function isOpen(key, defaultValue) {
         if (expanded.has(key)) return expanded.get(key);
@@ -86,6 +115,7 @@
 
         busy = true;
         setSending(true);
+        updateSelection();
         newFolder.disabled = true;
         refresh.disabled = true;
 
@@ -221,7 +251,12 @@
         });
 
         options.append(label, remove);
-        row.append(open, options);
+        const selection=document.createElement('label');selection.className='archive-selection';
+        const checkbox=document.createElement('input');checkbox.type='checkbox';checkbox.checked=selected.has(conversation.id);checkbox.disabled=busy||state.sending;
+        checkbox.setAttribute('aria-label','Select chat: '+(conversation.title||'Untitled operation'));
+        checkbox.onchange=()=>{if(checkbox.checked)selected.add(conversation.id);else selected.delete(conversation.id);updateSelection();};
+        selection.append(checkbox,document.createTextNode('Select chat'));
+        row.append(selection,open, options);
         return row;
     }
 
@@ -321,6 +356,8 @@
             return;
         }
 
+        const available=new Set(state.conversations.map(c=>c.id));for(const id of selected)if(!available.has(id))selected.delete(id);
+        updateSelection();
         list.replaceChildren();
 
         const knownFolders = new Set(folders.map((folder) => folder.id));

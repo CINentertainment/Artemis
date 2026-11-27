@@ -146,3 +146,4 @@
     outline: 2px solid #d6b5ff;
     outline-offset: 3px;
 }
+.archive-selection{display:flex;align-items:center;gap:7px;padding:7px;font-size:.78rem;color:#cdbdde}.archive-selection input{width:auto;margin:0;accent-color:#b784f5}.archive-bulk{display:flex;flex-wrap:wrap;gap:6px}.archive-bulk button{font-size:.72rem}.archive-selection input:focus-visible{outline:2px solid #d6b5ff;outline-offset:3px}

@@ -417,6 +417,8 @@ def remove_conversation(
             ConversationFolderMembership.conversation_id == conversation.id
         )
     )
+    from app.services.voice_sessions import purge_conversation
+    purge_conversation(database, conversation.id)
     delete_conversation(database, conversation)
 
     record_audit_event(
@@ -457,7 +459,9 @@ def generate_conversation_response(
 
     from app.services.note_commands import is_note_chat_request
 
-    direct_command = is_research_chat_request(payload.content) or is_note_chat_request(payload.content)
+    from app.services.daily_report import is_report_request
+
+    direct_command = is_research_chat_request(payload.content) or is_note_chat_request(payload.content) or is_report_request(payload.content)
 
     if payload.use_risk_tracker and risk_tracker_connector is None and not direct_command:
         raise HTTPException(

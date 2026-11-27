@@ -97,7 +97,8 @@ def research(asset):
     topic='recent '+subject
     query=f'"{asset["symbol"]}" "{asset["name"]}" news earnings outlook {now():%B %Y}'
     findings=[];context={'errors':[]}
-    collect_pages(topic,[(query,None,'month'),(f'"{asset["name"]}" investor relations earnings',None,'month')],findings,context,max_total=3,max_attempts=8)
+    from app.services.collection_queries import prefer
+    collect_pages(topic,prefer([(query,None,'month'),(f'"{asset["name"]}" investor relations earnings',None,'month')],asset['name']+' '+asset['symbol']),findings,context,max_total=3,max_attempts=8)
     evidence=[]
     for f in findings:
         if freshness(f.published_at,now().date())!='recent_publication_claim':continue
@@ -140,13 +141,19 @@ class Worker:
                 except Exception as e:update({'status':'failed','last_finished':now().isoformat(),'next_at':(now()+timedelta(minutes=state['interval_minutes'])).isoformat(),'errors':[str(e)[:500]]})
             self.event.wait(20)
     def cycle(self,state):
+        from app.services.operations_recovery import ready
+        if not ready(['ollama','search','market_lens'],'market research'):
+            update({'status':'waiting_service','next_at':(now()+timedelta(seconds=30)).isoformat()});return
+        from app.services.collection_planning import lane_available,research_deferred
+        if not lane_available('markets'):
+            research_deferred('markets','all symbols','Waiting for the next market collection allowance.');update({'status':'budget_wait','next_at':(now()+timedelta(minutes=30)).isoformat()});return
         from app.routes.research import research_lock
         from app.routes.conversations import get_model_runtime
-        if not research_lock.acquire(blocking=False):
-            update({'status':'deferred','next_at':(now()+timedelta(minutes=2)).isoformat()});return
+        if not research_lock.acquire(blocking=False,priority='background'):
+            update({'status':'deferred','next_at':(now()+timedelta(seconds=30)).isoformat()});return
         try:
             update({'status':'running','last_started':now().isoformat(),'errors':[]})
-            errors=[];results=[];processed=0;symbols=list(state['symbols'])
+            errors=[];results=[];processed=0;yielded=False;budget_wait=False;symbols=list(state['symbols'])
             with connector()as client:
                 proposals,cursor=discover(client,state)
                 for symbol in proposals:
@@ -155,21 +162,30 @@ class Worker:
                     try:
                         asset=call(client,'/track',{'symbol':symbol});symbols=remember_symbol(asset['symbol'])
                     except Exception as e:errors.append(symbol+': '+str(e)[:200])
-                chosen=[symbols[(state['cursor']+i)%len(symbols)]for i in range(min(len(symbols),state['batch_size']))]if symbols else[]
+                from app.services.collection_planning import rank,try_market,finish_market
+                from uuid import uuid4
+                rotation=[symbols[(state['cursor']+i)%len(symbols)]for i in range(len(symbols))]if symbols else[]
+                chosen=rank('markets',rotation)[:state['batch_size']]
                 for symbol in chosen:
+                    if research_lock.pending():yielded=True;break
                     if self.event.is_set()or not load()['enabled']:break
+                    attempt=str(uuid4());allowed,hints=try_market(symbol,attempt)
+                    if not allowed:budget_wait=True;continue
                     processed+=1
                     try:
                         asset=call(client,'/track',{'symbol':symbol});call(client,f'/assets/{asset["id"]}/refresh',{})
                         prices=client.list_prices(asset['id'],limit=400)
-                        evidence,warnings=research(asset);record=create_record(asset,prices,evidence,get_model_runtime(),horizon=state['horizon_days'])
+                        with research_lock.background(lane='markets',target=symbol):
+                            research_lock.set_collection_hints(hints or{});evidence,warnings=research(asset)
+                        record=create_record(asset,prices,evidence,get_model_runtime(),horizon=state['horizon_days'])
                         # Same evidence/date/horizon is idempotent even after a retry.
                         fingerprint=hashlib.sha256(json.dumps([symbol,record['as_of'],record['horizon_end'],[{k:e[k]for k in ('url','quote','published_at')}for e in evidence]],sort_keys=True).encode()).hexdigest()
                         record['research_key']=fingerprint
                         saved=call(client,f'/assets/{asset["id"]}/research',{'record':record})
+                        finish_market(attempt,'completed',saved['id'])
                         results.append(dict(symbol=symbol,asset_id=asset['id'],direction=saved.get('direction',record['direction']),record_id=saved['id'],warnings=warnings))
-                    except Exception as e:errors.append(symbol+': '+str(e)[:250])
-            current=load();update({'status':'partial'if errors else'completed','last_finished':now().isoformat(),'next_at':(now()+timedelta(minutes=current['interval_minutes'])).isoformat()if current['enabled']else None,'cursor':state['cursor']+processed,'discovery_cursor':cursor,'results':results,'errors':errors[-20:]})
+                    except Exception as e:finish_market(attempt,'failed');errors.append(symbol+': '+str(e)[:250])
+            current=load();update({'status':'yielded'if yielded else'budget_wait'if budget_wait else'partial'if errors else'completed','last_finished':now().isoformat(),'next_at':(now()+timedelta(seconds=30 if yielded else 1800 if budget_wait else current['interval_minutes']*60)).isoformat()if current['enabled']else None,'cursor':state['cursor']+processed,'discovery_cursor':cursor,'results':results,'errors':errors[-20:]})
         finally:research_lock.release()
 
 worker=Worker()

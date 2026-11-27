@@ -68,6 +68,7 @@ def ground_event(event):
     if result.get('what') is None:return None,decisions
     # Titles and categorical status must not introduce claims absent from the excerpt.
     text=result['what']['text']
-    result['title']='Source reporting: '+(text if len(text)<=210 else text[:210].rsplit(' ',1)[0]+'…')
+    from app.services.note_headlines import note_headline
+    result['title']=note_headline(text, (result.get('where') or {}).get('text'))
     result['status']='reported'
     return result,decisions

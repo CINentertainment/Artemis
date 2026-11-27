@@ -243,6 +243,11 @@ def run_local_command(
     database: Session,
     user_content: str,
 ) -> str | None:
+    from app.services.daily_report import run_report_command
+    report_reply = run_report_command(database, user_content)
+    if report_reply is not None:
+        return report_reply
+
     from app.services.note_commands import run_note_command
 
     note_reply = run_note_command(user_content)

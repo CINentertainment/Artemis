@@ -79,6 +79,30 @@ from app.services.market_automation import worker as market_worker, router as ma
 
 from app.services.risk_map import worker as atlas_worker, router as atlas_router
 
+from app.routes.reports import router as reports_router
+from app.services.operations_center import router as operations_router, worker as operations_worker
+from app.services.change_followup import router as changes_router, worker as changes_worker
+from app.services.voice_hub import router as voice_hub_router, worker as voice_hub_worker, control as voice_agent_control
+from app.services.persistent_speech import engine as speech_engine
+
+from app.services.voice_sessions import router as voice_sessions_router, worker as voice_sessions_worker
+
+from app.services.operations_recovery import router as recovery_router, worker as recovery_worker
+
+from app.services.event_tracking import router as event_router, worker as event_worker
+
+from app.services.collection_planning import router as planning_router, worker as planning_worker
+
+from app.services.proactive_delivery import router as delivery_router, worker as delivery_worker
+
+from app.services.evidence_assessment import router as assessment_router, worker as assessment_worker
+
+from app.services.mission_control import router as mission_router, worker as mission_worker
+
+from app.services.continuity import router as continuity_router, worker as continuity_worker
+from app.services.specialist_team import router as specialists_router, worker as specialists_worker
+from app.services.voice_extras import router as voice_extras_router
+
 settings = get_settings()
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -91,6 +115,10 @@ async def lifespan(
 ) -> AsyncIterator[None]:
     # Imported route modules register their models before table creation.
     initialize_database(engine)
+    assessment_worker.start()
+    mission_worker.start()
+    continuity_worker.start()
+    specialists_worker.start()
     backfill_references(engine)
 
     workspace_directory().mkdir(
@@ -103,16 +131,38 @@ async def lifespan(
         "application_started",
     )
 
+    recovery_worker.start()
+    event_worker.start()
+    planning_worker.start()
+    delivery_worker.start()
     research_scheduler.start()
     task_agent_worker.start()
     research_workspace_worker.start()
     market_worker.start()
     atlas_worker.start()
+    operations_worker.start()
+    changes_worker.start()
+    voice_hub_worker.start()
+    voice_sessions_worker.start()
 
     try:
         yield
     finally:
         try:
+            await asyncio.to_thread(specialists_worker.stop)
+            await asyncio.to_thread(continuity_worker.stop)
+            await asyncio.to_thread(mission_worker.stop)
+            await asyncio.to_thread(assessment_worker.stop)
+            await asyncio.to_thread(recovery_worker.stop)
+            await asyncio.to_thread(delivery_worker.stop)
+            await asyncio.to_thread(planning_worker.stop)
+            await asyncio.to_thread(event_worker.stop)
+            await asyncio.to_thread(voice_agent_control, 'quit')
+            await asyncio.to_thread(voice_sessions_worker.stop)
+            await asyncio.to_thread(speech_engine.close)
+            await asyncio.to_thread(voice_hub_worker.stop)
+            await asyncio.to_thread(changes_worker.stop)
+            await asyncio.to_thread(operations_worker.stop)
             await asyncio.to_thread(atlas_worker.stop)
             await asyncio.to_thread(market_worker.stop)
             await asyncio.to_thread(research_workspace_worker.stop)
@@ -160,6 +210,20 @@ app.include_router(tasks_router)
 app.include_router(intelligence_workspace_router)
 app.include_router(market_router)
 app.include_router(atlas_router)
+app.include_router(reports_router)
+app.include_router(operations_router)
+app.include_router(changes_router)
+app.include_router(voice_hub_router)
+app.include_router(voice_sessions_router)
+app.include_router(recovery_router)
+app.include_router(event_router)
+app.include_router(planning_router)
+app.include_router(delivery_router)
+app.include_router(assessment_router)
+app.include_router(mission_router)
+app.include_router(continuity_router)
+app.include_router(specialists_router)
+app.include_router(voice_extras_router)
 
 @app.get(
     "/",

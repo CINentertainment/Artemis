@@ -154,10 +154,14 @@ class Worker:
         while not self.stop_event.is_set():
             try:
                 s=state()
-                if (s['enabled']and(not s['next_at']or now()>=datetime.fromisoformat(s['next_at'])))or s['map_requested']:self.cycle(s['enabled'])
+                if (s['enabled']and(not s['next_at']or now()>=datetime.fromisoformat(s['next_at'])))or s['map_requested']or(s.get('map_deferred')and(not s['next_at']or now()>=datetime.fromisoformat(s['next_at']))):self.cycle(s['enabled'])
             except Exception as e:update({'status':'failed','errors':[str(e)[:350]],'next_at':(now()+timedelta(minutes=5)).isoformat(),'map_requested':False})
             self.stop_event.wait(10)
     def cycle(self,writes):
+        from app.services.operations_recovery import ready
+        if not ready(['notes','risk_tracker']if writes else['notes'],'risk and map sync'):
+            update({'status':'waiting_service','map_requested':False,'next_at':(now()+timedelta(seconds=30)).isoformat(),'map_deferred':True});return
+        update({'map_deferred':False})
         update({'status':'running','map_requested':False});errors=[];notes={};observed={};case_metadata={};linked=0;complete=True;bound=0
         with IntelNotesConnector(base_url=str(get_settings().intel_notes_url))as intel:
             for n in intel.list_notes()[:500]:

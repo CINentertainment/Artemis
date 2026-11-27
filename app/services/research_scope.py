@@ -61,7 +61,7 @@ def focused_base(topic):
     return base
 
 
-def initial_queries(topic: str, now: datetime) -> list[tuple[str,str|None,str|None]]:
+def _default_initial_queries(topic: str, now: datetime) -> list[tuple[str,str|None,str|None]]:
     from app.services.world_watch_profiles import profile
     selected=profile(clean_topic(topic))
     if selected:
@@ -135,3 +135,8 @@ def has_future_date(text: str, as_of: date) -> bool:
         parsed=parse_date(value)
         if parsed and parsed>as_of:return True
     return bool(re.search(r'\b(?:forecast horizon|next 90 days|future reporting)\b',text,re.I))
+
+
+def initial_queries(topic: str, now: datetime) -> list[tuple[str,str|None,str|None]]:
+    from app.services.collection_queries import prefer
+    return prefer(_default_initial_queries(topic,now),focused_base(topic))

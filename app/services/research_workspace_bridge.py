@@ -260,6 +260,12 @@ class ResearchWorkspaceWorker:
                 LOG.warning('Workspace worker encountered an error; research records remain unchanged.')
             self.stop_event.wait(5)
     def tick(self):
+        from app.services.operations_recovery import ready
+        from app.services.work_priority import research_lock
+        if not ready(['ollama','notes'],'workspace delivery')or not research_lock.acquire(blocking=False,priority='background'):return
+        try:return self._tick()
+        finally:research_lock.release()
+    def _tick(self):
         with SessionLocal() as database:
             row=database.scalar(select(ResearchBoardDelivery).where(ResearchBoardDelivery.status=='queued').order_by(ResearchBoardDelivery.created_at,ResearchBoardDelivery.id).limit(1))
             if row is None:

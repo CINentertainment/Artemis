@@ -50,6 +50,8 @@ def load_transcription_model() -> WhisperModel:
             MODEL_NAME,
             device="cpu",
             compute_type="int8",
+            cpu_threads=2,
+            num_workers=1,
             download_root=str(directory),
         )
 
@@ -63,7 +65,7 @@ def prepare_voice_model() -> str:
     return f"Voice model ready: {MODEL_NAME}"
 
 
-def transcribe_audio(content: bytes) -> dict:
+def transcribe_audio(content: bytes, fast: bool = False) -> dict:
     if not content:
         raise VoiceError("The recording is empty.")
 
@@ -100,7 +102,7 @@ def transcribe_audio(content: bytes) -> dict:
             segments, information = model.transcribe(
                 audio,
                 language="en",
-                beam_size=5,
+                beam_size=1 if fast else 5,
                 vad_filter=True,
                 condition_on_previous_text=False,
             )
@@ -164,65 +166,17 @@ def load_speech_model() -> Kokoro:
 
 
 def synthesize_speech(text: str) -> bytes:
-    import json
-    import os
-    import subprocess
-    import sys
-    import tempfile
-
-    cleaned = text.strip()
-
-    if not cleaned:
-        raise VoiceError("Enter text to speak.")
-
-    if len(cleaned) > MAX_SPEECH_CHARACTERS:
-        raise VoiceError(
-            "Spoken replies are limited to 3,000 characters."
-        )
-
-    if not _speech_lock.acquire(blocking=False):
-        raise VoiceError("Another spoken reply is being generated.")
-
+    from app.services.persistent_speech import engine
+    cleaned=text.strip()
+    if not cleaned:raise VoiceError('Enter text to speak.')
+    if len(cleaned)>MAX_SPEECH_CHARACTERS:raise VoiceError('Spoken replies are limited to 3,000 characters.')
+    if not _speech_lock.acquire(timeout=10):raise VoiceError('Another spoken reply is being generated.')
     try:
-        directory = get_settings().data_directory / "voice" / "kokoro"
-        worker = Path(__file__).with_name("speech_worker.py")
-
-        with tempfile.TemporaryDirectory(prefix="artemis-emma-") as temporary:
-            output = Path(temporary) / "reply.wav"
-
-            payload = {
-                "text": cleaned,
-                "model_path": str(directory / "kokoro-v1.0.onnx"),
-                "voices_path": str(directory / "voices-v1.0.bin"),
-                "output_path": str(output),
-            }
-
-            try:
-                result = subprocess.run(
-                    [sys.executable, "-X", "utf8", str(worker)],
-                    input=json.dumps(payload).encode("utf-8"),
-                    stdout=subprocess.PIPE,
-                    stderr=subprocess.PIPE,
-                    timeout=120,
-                    check=False,
-                    creationflags=(
-                        subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0
-                    ),
-                )
-            except subprocess.TimeoutExpired as error:
-                raise VoiceError("Emma speech generation timed out.") from error
-            except OSError as error:
-                raise VoiceError("Emma speech worker could not start.") from error
-
-            if result.returncode != 0 or not output.is_file():
-                detail = result.stderr.decode("utf-8", errors="replace")[-1500:]
-                raise VoiceError(f"Emma speech worker failed: {detail}")
-
-            content = output.read_bytes()
-
-            if len(content) <= 44:
-                raise VoiceError("Emma generated an empty audio file.")
-
-            return content
-    finally:
-        _speech_lock.release()
+        directory=get_settings().data_directory/'voice/kokoro'
+        if not(directory/'kokoro-v1.0.onnx').is_file()or not(directory/'voices-v1.0.bin').is_file():raise VoiceError('Kokoro speech model or voice bundle is missing.')
+        try:
+            from app.services.voice_hub import settings as listener_settings
+            speed=min(1.4,max(.75,float(listener_settings().get('speech_speed',1))))
+            return engine.speak(cleaned,directory/'kokoro-v1.0.onnx',directory/'voices-v1.0.bin',speed=speed)
+        except Exception as error:raise VoiceError('Persistent speech engine: '+str(error))from error
+    finally:_speech_lock.release()

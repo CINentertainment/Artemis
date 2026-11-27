@@ -1,6 +1,6 @@
 import json
 from datetime import datetime, timezone
-from threading import Lock
+from app.services.work_priority import research_lock
 from typing import Annotated
 from uuid import UUID, uuid4
 
@@ -15,7 +15,7 @@ from app.research_trial import run_research
 
 
 router = APIRouter(prefix="/research", tags=["research"])
-research_lock = Lock()
+
 
 
 class ResearchRequest(BaseModel):
@@ -42,6 +42,7 @@ class RequisitionRequest(ResearchRequest):
 
 class RunRequest(BaseModel):
     request_id: UUID = Field(default_factory=uuid4)
+    followup_questions: list[ResearchQuestion] | None = Field(default=None, min_length=1, max_length=2)
 
 
 def _requisition_data_without_reference(record: ResearchRequisition) -> dict:
@@ -287,7 +288,7 @@ def research(request: ResearchRequest) -> dict:
     if not research_lock.acquire(blocking=False):
         raise HTTPException(
             status_code=409,
-            detail="A research run is already in progress.",
+            detail="The research worker is busy or reserved for a queued operator question.",
         )
 
     try:
@@ -525,7 +526,7 @@ def run_requisition(
     if not research_lock.acquire(blocking=False):
         raise HTTPException(
             status_code=409,
-            detail="A research run is already in progress.",
+            detail="The research worker is busy or reserved for a queued operator question.",
         )
 
     try:
@@ -554,14 +555,23 @@ def run_requisition(
             )
             snapshot = {
                 "topic": requisition.topic,
-                "questions": json.loads(
+                "questions": request.followup_questions if request.followup_questions is not None else json.loads(
                     requisition.questions_json
                 ),
+                "followup": request.followup_questions is not None,
                 "risk_tracker_case_id": (
                     requisition.risk_tracker_case_id
                 ),
             }
 
+            from app.services.collection_planning import admit_research,research_deferred
+            try:collection=admit_research(database,requisition.id,str(request.request_id))
+            except HTTPException as error:
+                database.rollback();context=research_lock.collection_context()
+                research_deferred(context.get('lane')or'world',context.get('target')or requisition.id,str(error.detail));raise
+            if collection:
+                snapshot['collection_priority']={k:collection[k]for k in ('plan_id','name','questions','domains','reason')}
+                if collection['questions']and request.followup_questions is None:snapshot['questions']=collection['questions']
             record = ResearchRun(
                 id=str(request.request_id),
                 requisition_id=requisition.id,

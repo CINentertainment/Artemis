@@ -26,7 +26,7 @@ class SpeechRequest(BaseModel):
 
 
 @router.post("/transcribe")
-async def transcribe(file: UploadFile) -> dict:
+async def transcribe(file: UploadFile, fast: bool = False) -> dict:
     try:
         content = await file.read(MAX_AUDIO_BYTES + 1)
 
@@ -39,6 +39,7 @@ async def transcribe(file: UploadFile) -> dict:
         return await run_in_threadpool(
             transcribe_audio,
             content,
+            fast,
         )
     except VoiceError as error:
         raise HTTPException(

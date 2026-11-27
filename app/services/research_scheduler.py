@@ -15,8 +15,13 @@ from app.routes.research import (
     RunRequest,
     compare_runs,
     get_requisition,
-    run_requisition,
+    run_requisition as direct_run_requisition,
 )
+
+
+def run_requisition(*args,**kwargs):
+    from app.services.work_priority import research_lock
+    with research_lock.background(lane='world',target=kwargs.get('requisition_id')or(args[0]if args else None)):return direct_run_requisition(*args,**kwargs)
 
 
 logger = logging.getLogger(__name__)
@@ -270,6 +275,8 @@ class ResearchScheduler:
                 )
             ).all()
 
+        from app.services.collection_planning import rank
+        requisition_ids=rank('world',requisition_ids)
         for requisition_id in requisition_ids:
             if self._stop.is_set():
                 return
@@ -283,6 +290,16 @@ class ResearchScheduler:
                 )
 
     def _run_due(self, requisition_id: str) -> None:
+        from app.services.operations_recovery import ready
+        if not ready(['ollama','search','notes'],'scheduled research'):
+            with SessionLocal() as database:
+                record=database.get(ResearchSchedule,requisition_id)
+                if record and record.enabled:
+                    record.next_run_at=utc_now()+timedelta(seconds=30)
+                    record.last_status='waiting_service'
+                    record.last_error='Waiting for required local services; no research attempt was started.'
+                    database.commit()
+            return
         with SessionLocal() as database:
             schedule = database.get(
                 ResearchSchedule,
@@ -416,7 +433,7 @@ class ResearchScheduler:
 
             schedule.last_status = "deferred"
             schedule.last_error = (
-                "Another research run is active. Retrying shortly."
+                "Research is deferred for the shared worker, priority policy or daily allowance. Retrying shortly."
             )
             schedule.last_run_id = None
             schedule.last_finished_at = utc_now()

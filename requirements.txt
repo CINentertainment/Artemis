@@ -26,3 +26,7 @@ typing-inspection==0.4.5
 typing_extensions==4.16.0
 uvicorn==0.54.0
 chromadb==1.5.9
+
+# Saved-record PDF reporting
+reportlab>=4,<5
+tzdata
