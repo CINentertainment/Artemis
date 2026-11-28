@@ -30,3 +30,8 @@ chromadb==1.5.9
 # Saved-record PDF reporting
 reportlab>=4,<5
 tzdata
+
+# Local document reading and scanned-PDF rendering
+pypdf>=5,<7
+pypdfium2>=4,<6
+Pillow>=11,<13
