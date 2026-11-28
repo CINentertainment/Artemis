@@ -1,7 +1,8 @@
 import json
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, Request, status
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -21,6 +22,8 @@ from app.schemas import (
     MessageCreate,
     MessageResponse,
 )
+from app.services.document_memory import search as search_document_library
+from app.services.document_chat import ConversationDocuments, context_ids, context_view, save_context, run_document_turn
 from app.services.audit import record_audit_event
 from app.services.conversations import (
     ConversationContentError,
@@ -419,6 +422,7 @@ def remove_conversation(
     )
     from app.services.voice_sessions import purge_conversation
     purge_conversation(database, conversation.id)
+    database.query(ConversationDocuments).filter(ConversationDocuments.conversation_id == conversation.id).delete()
     delete_conversation(database, conversation)
 
     record_audit_event(
@@ -455,6 +459,32 @@ def generate_conversation_response(
 ) -> ConversationTurnResponse:
     conversation = get_conversation_or_404(database, conversation_id)
 
+    from app.services.capability_awareness import is_capability_question, chat_turn
+    if is_capability_question(payload.content):
+        result = chat_turn(database, conversation, payload.content, runtime)
+        usage = result.model_response.usage
+        return ConversationTurnResponse(
+            user_message=build_message_response(result.user_message),
+            assistant_message=build_message_response(result.assistant_message),
+            provider=result.model_response.provider, model=result.model_response.model,
+            finish_reason=result.model_response.finish_reason,
+            input_tokens=usage.input_tokens, output_tokens=usage.output_tokens, total_tokens=usage.total_tokens,
+        )
+
+    # Attachments take the explicit read/draft path, never command dispatch.
+    if payload.document_ids is not None and not payload.document_ids:
+        save_context(database, conversation.id, [])
+    if payload.document_ids or (payload.document_ids is None and context_ids(database, conversation.id)):
+        result = run_document_turn(database, conversation, payload, runtime)
+        usage = result.model_response.usage
+        return ConversationTurnResponse(
+            user_message=build_message_response(result.user_message),
+            assistant_message=build_message_response(result.assistant_message),
+            provider=result.model_response.provider, model=result.model_response.model,
+            finish_reason=result.model_response.finish_reason,
+            input_tokens=usage.input_tokens, output_tokens=usage.output_tokens, total_tokens=usage.total_tokens,
+        )
+
     from app.services.research_chat import is_research_chat_request
 
     from app.services.note_commands import is_note_chat_request
@@ -462,6 +492,26 @@ def generate_conversation_response(
     from app.services.daily_report import is_report_request
 
     direct_command = is_research_chat_request(payload.content) or is_note_chat_request(payload.content) or is_report_request(payload.content)
+
+    # Automatic document recall is read-only, and never intercepts direct commands
+    # or requests explicitly selecting other connected information sources.
+    if payload.use_document_library and not direct_command and not (
+        payload.use_intel_notes or payload.use_risk_tracker or payload.use_market_lens or payload.information_records_query
+    ):
+        query=payload.content
+        if __import__('re').search(r'\b(it|its|that|those|them|their|these)\b',query,__import__('re').I):
+            previous=database.scalars(select(Message).where(Message.conversation_id==conversation.id,Message.role=='user').order_by(Message.id.desc()).limit(1)).first()
+            if previous:query+=' '+read_message_content(previous)[:500]
+        recalled=search_document_library(database,query)
+        if recalled['pending_index'] and not recalled['documents']:
+            raise HTTPException(409,'Saved-document indexing is still in progress. Retry this question to index the next batch; no document answer was generated.')
+        if recalled['documents']:
+            result=run_document_turn(database,conversation,payload,runtime,library_result=recalled)
+            usage=result.model_response.usage
+            return ConversationTurnResponse(
+                user_message=build_message_response(result.user_message),assistant_message=build_message_response(result.assistant_message),
+                provider=result.model_response.provider,model=result.model_response.model,finish_reason=result.model_response.finish_reason,
+                input_tokens=usage.input_tokens,output_tokens=usage.output_tokens,total_tokens=usage.total_tokens)
 
     if payload.use_risk_tracker and risk_tracker_connector is None and not direct_command:
         raise HTTPException(
@@ -523,3 +573,32 @@ def generate_conversation_response(
         output_tokens=usage.output_tokens,
         total_tokens=usage.total_tokens,
     )
+
+
+@router.get('/{conversation_id}/documents')
+def conversation_document_context(conversation_id: UUID, database: Session = Depends(get_database)):
+    conversation=get_conversation_or_404(database,conversation_id)
+    return context_view(database,conversation.id)
+
+
+class ConversationDocumentSelection(BaseModel):
+    document_ids: list[str] = Field(default_factory=list,max_length=8)
+
+@router.put('/{conversation_id}/documents')
+async def set_conversation_document_context(
+    conversation_id: UUID, payload: ConversationDocumentSelection,
+    request: Request,
+    database: Session = Depends(get_database),
+):
+    from app.services.documents import same_origin, get_doc
+    await same_origin(request)
+    conversation=get_conversation_or_404(database,conversation_id)
+    if conversation.status!='active':raise HTTPException(409,'Conversation is inactive.')
+    ids=[]
+    for value in payload.document_ids:
+        try:identity=str(UUID(value))
+        except ValueError:raise HTTPException(400,'Invalid document identifier.')
+        get_doc(database,identity)
+        if identity not in ids:ids.append(identity)
+    save_context(database,conversation.id,ids)
+    return context_view(database,conversation.id)

@@ -27,6 +27,16 @@ window.ARTEMIS_NAVIGATION_REGISTRY = {
       "installed": true
     },
     {
+      "id": "documents",
+      "group": "Workspace",
+      "label": "Document reading",
+      "href": "/static/documents.html",
+      "description": "Private uploads, local OCR and cited document answers",
+      "keywords": "pdf word excel powerpoint files documents reading compare",
+      "aliases": [],
+      "installed": true
+    },
+    {
       "id": "priorities",
       "group": "Workspace",
       "label": "Collection planning",

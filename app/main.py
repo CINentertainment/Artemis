@@ -311,3 +311,10 @@ async def service_health() -> ServiceHealthResponse:
 )
 def storage_health() -> StorageHealthResponse:
     return check_storage_health(engine)
+
+# Private document workspace: tables registered before startup database initialization.
+from app.services.documents import router as documents_router
+app.include_router(documents_router)
+
+from app.services.capability_awareness import router as capability_router
+app.include_router(capability_router)

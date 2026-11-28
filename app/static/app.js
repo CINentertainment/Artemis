@@ -244,6 +244,7 @@ function scrollMessagesToBottom() {
 async function selectConversation(conversationId) {
     const loadId = ++state.conversationLoad;
     state.currentConversationId = conversationId;
+    window.artemisDocuments?.load(conversationId);
     renderConversationList();
 
     const conversation = state.conversations.find(
@@ -352,11 +353,17 @@ function buildTurnPayload(content) {
         payload.market_lens_include_signals =
             elements.marketIncludeSignals.checked;
     }
+    if (window.artemisDocuments) {
+        payload.document_ids = window.artemisDocuments.ids();
+        payload.document_context_revision = window.artemisDocuments.revision();
+        payload.use_document_library = window.artemisDocuments.libraryEnabled();
+    }
     return payload;
 }
 
 function setSending(sending) {
     state.sending = sending;
+    window.artemisDocuments?.render();
     elements.sendButton.disabled = sending;
     elements.messageInput.disabled = sending;
     elements.newConversationButton.disabled = sending;
@@ -369,9 +376,9 @@ function setSending(sending) {
 
 async function handleMessageSubmit(event) {
     event.preventDefault();
-    if (state.sending) return;
+    if (state.sending || window.artemisDocuments?.busy()) return;
 
-    const content = elements.messageInput.value.trim();
+    const content = elements.messageInput.value.trim() || (window.artemisDocuments?.ids()?.length ? "Summarize these attached documents." : "");
     if (!content) return;
 
     try {
@@ -393,6 +400,7 @@ async function handleMessageSubmit(event) {
         elements.messagePanel.querySelector(".muted-text")?.remove();
         renderMessage(response.user_message);
         renderMessage(response.assistant_message);
+        window.artemisDocuments?.sent(state.currentConversationId);
         document.dispatchEvent(new CustomEvent("artemis:assistant-reply", {
             detail: { content: response.assistant_message.content || "" },
         }));

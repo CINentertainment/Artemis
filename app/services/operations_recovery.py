@@ -199,6 +199,11 @@ class Worker:
         self.event.set()
         if self.thread:self.thread.join(timeout=15)
     def tick(self):
+        try:
+            from app.services.capability_awareness import review_if_due
+            review_if_due()
+        except Exception:
+            LOG.exception('Advisory capability review failed')
         prefs=preferences()
         if not prefs['enabled']:return
         for key,target in targets().items():

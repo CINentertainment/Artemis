@@ -297,6 +297,13 @@ def run_conversation_turn(
         content=user_content,
     )
 
+    from app.services.capability_awareness import is_capability_question, answer_response, prompt_context
+    if is_capability_question(user_content):
+        response = answer_response(database, conversation, user_content, runtime)
+        assistant_message = add_message(database, conversation=conversation, role="assistant", content=response.content, model_name=response.model)
+        return ConversationTurnResult(user_message=user_message, assistant_message=assistant_message, model_response=response)
+    system_prompt = system_prompt + "\n\n" + prompt_context()
+
     from app.services.local_commands import run_local_command
 
     local_content = run_local_command(database, user_content)

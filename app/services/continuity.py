@@ -1,5 +1,5 @@
 """Scheduled encrypted backups; credentials stay Windows-user protected locally."""
-import json,os,shutil,sqlite3,time,logging
+import json,os,shutil,sqlite3,time,logging,tempfile
 from datetime import datetime,timezone,timedelta
 from pathlib import Path
 from threading import Event,Thread,RLock
@@ -107,6 +107,23 @@ def attachments(cfg):
             if path.is_file():result['artemis/voice-agent/'+name]=path
     return result
 
+def staged_rehearsal(raw,password):
+    # Temporary staged files stay under the operator's local data directory and
+    # are removed before success is recorded. No live database is activated.
+    with tempfile.TemporaryDirectory(prefix='restore-check-',dir=state_dir()) as folder:
+        stage=Path(folder)/'stage'
+        report=core.stage_restore(raw,password,stage,protect_text,unprotect_text)
+        checked={}
+        for label,meta in report['services'].items():
+            target=stage/meta['file']
+            if core.sha(target.read_bytes())!=meta['sha256']:raise ValueError('Staged hash mismatch.')
+            raw_db=core.db_from(target.read_bytes())
+            try:
+                if core.check(raw_db)!=meta['tables']:raise ValueError('Staged row-count mismatch.')
+            finally:raw_db.close()
+            checked[label]={'tables':len(meta['tables']),'rows':sum(meta['tables'].values())}
+    return {'verified_at':core.now(),'services':checked,'scope':'Archive decryption, staging, current-account encryption rebind, staged database hashes, integrity and row counts. Temporary staging removed; live databases unchanged. Not a different-machine or live-activation test.'}
+
 def perform():
     if not LOCK.acquire(blocking=False):return
     try:
@@ -120,11 +137,13 @@ def perform():
         try:
             with tmp.open('wb')as f:f.write(raw);f.flush();os.fsync(f.fileno())
             core.inspect_archive(tmp.read_bytes(),cfg['passphrase'],encode=protect_text,decode=unprotect_text)
+            rehearsal=staged_rehearsal(tmp.read_bytes(),cfg['passphrase'])
             tmp.replace(target)
         finally:tmp.unlink(missing_ok=True)
         receipt={'format':'artemis-vault-v1','id':identity,'created_at':manifest['created_at'],'file':target.name,'bytes':len(raw),'sha256':core.sha(raw),'verified_at':core.now(),'services':list(manifest['databases']),'dpapi_values':manifest['dpapi_values'],'included':{k:cfg.get(k,True)for k in ['include_reports','include_settings','include_workspace']},'verification':'Authenticated archive, SQLite integrity/foreign keys/row counts and in-memory DPAPI rebind rehearsal passed on this Windows account.','consistency':manifest['consistency']}
+        receipt['restore_rehearsal']=rehearsal
         atomic(destination/(identity+'.json'),receipt)
-        status.update(state='verified',last_success=core.now(),latest=receipt,error=None,failures=0);save_status(status)
+        status.update(state='verified',last_success=core.now(),latest=receipt,restore_rehearsal=rehearsal,error=None,failures=0);save_status(status)
         # Remove only older known verified backup pairs after the new one passes.
         known=[]
         for p in destination.glob('*.json'):
@@ -153,6 +172,25 @@ def same_origin(request:Request):
 router=APIRouter(prefix='/continuity',dependencies=[Depends(same_origin)])
 @router.get('/status')
 def get_status():return status()
+@router.post('/rehearse')
+async def rehearse_latest():
+    import asyncio
+    def work():
+        if not LOCK.acquire(blocking=False):raise HTTPException(409,'A backup or rehearsal is already active.')
+        try:
+            cfg=config();value=saved_status();receipt=value.get('latest') or {}
+            name=receipt.get('file','')
+            if not cfg or not name or Path(name).name!=name:raise HTTPException(409,'Configure and complete a verified backup first.')
+            target=Path(cfg['destination'])/name
+            if target.is_symlink() or not target.is_file() or target.stat().st_size>core.MAX_TOTAL+32*1024*1024:raise HTTPException(409,'The latest archive is unavailable or invalid.')
+            raw=target.read_bytes()
+            if core.sha(raw)!=receipt.get('sha256'):raise HTTPException(409,'The archive differs from its saved receipt.')
+            result=staged_rehearsal(raw,cfg['passphrase']);value['restore_rehearsal']=result;save_status(value);return result
+        finally:LOCK.release()
+    try:return await asyncio.to_thread(work)
+    except HTTPException:raise
+    except Exception as error:raise HTTPException(422,'Staged restore rehearsal failed ('+type(error).__name__+'). No live data was replaced.')
+
 @router.get('/discover')
 def discover():return {'candidates':discovery(),'default_destination':str(Path(get_settings().data_directory)/'encrypted-backups')}
 @router.put('/settings')

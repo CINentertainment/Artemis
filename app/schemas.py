@@ -148,6 +148,11 @@ class MessageResponse(BaseModel):
 
 
 class ConversationTurnCreate(BaseModel):
+    use_document_library: bool = False
+    document_context_revision: int | None = Field(default=None,ge=0)
+    # None reuses this conversation context; [] explicitly clears it.
+    document_ids: list[str] | None = Field(default=None, max_length=8)
+
     content: str = Field(
         min_length=1,
         max_length=100000,
