@@ -1,0 +1,44 @@
+/* Artemis shared navigation shell v1.0.0. Scoped to avoid page-specific UI changes. */
+body.artemis-shell-ready{padding-top:64px!important}
+body.artemis-shell-dashboard .app-shell{height:calc(100vh - 64px)!important;height:calc(100dvh - 64px)!important;min-height:0!important}
+body.artemis-shell-ready [data-artemis-legacy-navigation]{display:none!important}
+body.artemis-shell-ready aside[aria-label="Artemis briefings and alerts"] a[href]:not([href="/static/inbox.html"]){display:none!important}
+#artemis-navigation-shell,#artemis-navigation-shell *{box-sizing:border-box!important;font-family:system-ui,-apple-system,"Segoe UI",sans-serif!important;letter-spacing:normal}
+#artemis-navigation-shell{position:fixed;inset:0 0 auto;z-index:10000;color:#f1ebff!important;font-size:14px!important;line-height:1.4!important;text-align:left!important}
+#artemis-navigation-shell [hidden][hidden]{display:none!important}
+#artemis-navigation-shell .ans-top{display:flex!important;align-items:center!important;gap:22px!important;height:64px!important;width:100%!important;margin:0!important;padding:0 24px!important;background:#100b19!important;border:0!important;border-bottom:1px solid #49345d!important;box-shadow:0 5px 20px #0004!important}
+#artemis-navigation-shell a{text-decoration:none!important;color:#ede4fb!important;cursor:pointer!important;box-shadow:none!important;transform:none!important;white-space:normal!important}
+#artemis-navigation-shell .ans-brand{display:flex!important;align-items:center!important;gap:10px!important;flex:none!important;padding:0!important;margin:0!important;border:0!important;background:none!important;min-height:42px!important}
+#artemis-navigation-shell .ans-mark{display:grid!important;place-items:center!important;width:32px!important;height:32px!important;border-radius:10px!important;color:#e1c5ff!important;background:linear-gradient(135deg,#4e2579,#21152f)!important;border:1px solid #956bc4!important;font-size:24px!important;font-weight:800!important}
+#artemis-navigation-shell .ans-wordmark{font-size:14px!important;letter-spacing:.14em!important;font-weight:750!important}
+#artemis-navigation-shell .ans-context{display:flex!important;flex-direction:column!important;min-width:0!important;margin-right:auto!important;border-left:1px solid #49345d!important;padding-left:20px!important}
+#artemis-navigation-shell .ans-category{font-size:10px!important;text-transform:uppercase!important;letter-spacing:.12em!important;color:#b7a4cc!important}
+#artemis-navigation-shell .ans-page{font-size:14px!important;font-weight:650!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important;max-width:260px!important}
+#artemis-navigation-shell .ans-quick{display:flex!important;align-items:center!important;gap:6px!important;flex:none!important}
+#artemis-navigation-shell .ans-quick-link{display:flex!important;align-items:center!important;min-height:40px!important;padding:8px 12px!important;border:1px solid transparent!important;background:none!important;border-radius:8px!important;font-size:13px!important;line-height:1.3!important;margin:0!important}
+#artemis-navigation-shell .ans-quick-link[aria-current=page]{background:#382249!important;border-color:#8863ac!important}
+#artemis-navigation-shell button{appearance:none!important;display:inline-flex!important;align-items:center!important;justify-content:center!important;gap:12px!important;min-height:42px!important;width:auto!important;margin:0!important;padding:9px 14px!important;border:1px solid #8b67ad!important;border-radius:9px!important;background:#39234f!important;color:#f3e9ff!important;font:600 14px/1.3 system-ui!important;cursor:pointer!important;box-shadow:none!important;text-transform:none!important;flex:none!important}
+#artemis-navigation-shell button:hover,#artemis-navigation-shell .ans-link:hover,#artemis-navigation-shell .ans-quick-link:hover{background:#443055!important;border-color:#b18bdb!important}
+#artemis-navigation-shell .ans-shortcut{font:11px/1.2 system-ui!important;color:#c4aed9!important;border:1px solid #84679c!important;border-radius:4px!important;padding:3px!important}
+#artemis-navigation-shell :is(a,button,input):focus-visible{outline:3px solid #dfbaff!important;outline-offset:3px!important}
+#artemis-navigation-shell .ans-veil{position:fixed!important;inset:64px 0 0!important;background:#030106a8!important;backdrop-filter:blur(3px)!important}
+#artemis-navigation-shell .ans-menu{position:fixed!important;top:76px!important;right:20px!important;width:min(1160px,calc(100vw - 40px))!important;max-height:calc(100dvh - 96px)!important;overflow:auto!important;overscroll-behavior:contain!important;background:#181020!important;border:1px solid #785790!important;border-radius:16px!important;box-shadow:0 24px 90px #000a!important;padding:22px!important;margin:0!important}
+#artemis-navigation-shell .ans-menu-head{display:flex!important;justify-content:space-between!important;align-items:center!important;gap:16px!important;margin:0 0 16px!important}
+#artemis-navigation-shell h2{font-size:21px!important;line-height:1.3!important;font-weight:700!important;margin:0!important;padding:0!important;color:#f3eaff!important}
+#artemis-navigation-shell .ans-search-label{display:block!important;margin:0 0 7px!important;padding:0!important;font-size:13px!important;color:#cbb7dc!important}
+#artemis-navigation-shell .ans-search{display:block!important;width:100%!important;height:46px!important;min-width:0!important;padding:10px 14px!important;margin:0!important;background:#0e0b14!important;color:#f3eaff!important;border:1px solid #7b5c96!important;border-radius:9px!important;font-size:15px!important;line-height:1.4!important;box-shadow:none!important}
+#artemis-navigation-shell .ans-hint,#artemis-navigation-shell .ans-empty{font-size:13px!important;line-height:1.5!important;color:#bcadce!important;margin:12px 0 18px!important;padding:0!important}
+#artemis-navigation-shell .ans-grid{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:24px!important;margin:0!important;padding:0!important}
+#artemis-navigation-shell .ans-group{min-width:0!important;margin:0!important;padding:0!important;border:0!important;background:none!important}
+#artemis-navigation-shell .ans-group-title{font-size:11px!important;text-transform:uppercase!important;letter-spacing:.12em!important;color:#c59eee!important;font-weight:700!important;margin:0 0 9px!important;padding:0 9px!important}
+#artemis-navigation-shell .ans-list{display:flex!important;flex-direction:column!important;gap:5px!important}
+#artemis-navigation-shell .ans-link{display:flex!important;flex-direction:column!important;align-items:flex-start!important;gap:3px!important;min-height:58px!important;margin:0!important;padding:9px 11px!important;background:#21172c!important;border:1px solid transparent!important;border-radius:9px!important;line-height:1.4!important;overflow-wrap:anywhere!important}
+#artemis-navigation-shell .ans-link[aria-current=page]{border-color:#b18bdb!important;background:#3b2651!important}
+#artemis-navigation-shell .ans-link-title{font-size:14px!important;font-weight:650!important;color:#f1e7fc!important}
+#artemis-navigation-shell .ans-link-desc{font-size:12px!important;font-weight:400!important;color:#bdadce!important}
+#artemis-navigation-shell .ans-unavailable{opacity:.57!important;cursor:default!important}
+@media(max-width:1050px){#artemis-navigation-shell .ans-quick{display:none!important}#artemis-navigation-shell .ans-top{gap:16px!important}}
+@media(max-width:720px){#artemis-navigation-shell .ans-grid{grid-template-columns:repeat(2,minmax(0,1fr))!important}#artemis-navigation-shell .ans-wordmark{display:none!important}#artemis-navigation-shell .ans-top{padding:0 12px!important;gap:12px!important}#artemis-navigation-shell .ans-context{padding-left:12px!important}#artemis-navigation-shell .ans-shortcut{display:none!important}#artemis-navigation-shell .ans-page{max-width:40vw!important}#artemis-navigation-shell .ans-menu{left:8px!important;right:8px!important;top:72px!important;width:calc(100vw - 16px)!important;padding:18px!important;max-height:calc(100dvh - 80px)!important}}
+@media(max-width:440px){#artemis-navigation-shell .ans-grid{grid-template-columns:1fr!important}#artemis-navigation-shell .ans-page{font-size:12px!important}#artemis-navigation-shell .ans-top{gap:9px!important}}
+@media(prefers-reduced-motion:reduce){#artemis-navigation-shell *{scroll-behavior:auto!important;transition:none!important}}
+@media print{#artemis-navigation-shell{display:none!important}body.artemis-shell-ready{padding-top:0!important}}

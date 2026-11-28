@@ -102,6 +102,10 @@ from app.services.mission_control import router as mission_router, worker as mis
 from app.services.continuity import router as continuity_router, worker as continuity_worker
 from app.services.specialist_team import router as specialists_router, worker as specialists_worker
 from app.services.voice_extras import router as voice_extras_router
+from app.services.commerce import router as commerce_router, worker as commerce_worker
+
+from app.services.growth import router as growth_router, worker as growth_worker
+from app.services.outreach import router as outreach_router, worker as outreach_worker
 
 settings = get_settings()
 
@@ -119,6 +123,9 @@ async def lifespan(
     mission_worker.start()
     continuity_worker.start()
     specialists_worker.start()
+    commerce_worker.start()
+    growth_worker.start()
+    outreach_worker.start()
     backfill_references(engine)
 
     workspace_directory().mkdir(
@@ -149,6 +156,9 @@ async def lifespan(
         yield
     finally:
         try:
+            await asyncio.to_thread(outreach_worker.stop)
+            await asyncio.to_thread(growth_worker.stop)
+            await asyncio.to_thread(commerce_worker.stop)
             await asyncio.to_thread(specialists_worker.stop)
             await asyncio.to_thread(continuity_worker.stop)
             await asyncio.to_thread(mission_worker.stop)
@@ -224,6 +234,9 @@ app.include_router(mission_router)
 app.include_router(continuity_router)
 app.include_router(specialists_router)
 app.include_router(voice_extras_router)
+app.include_router(commerce_router)
+app.include_router(growth_router)
+app.include_router(outreach_router)
 
 @app.get(
     "/",
